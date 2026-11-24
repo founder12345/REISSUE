@@ -1,0 +1,3 @@
+export default function Privacy(){
+  return <div className="wrap page"><h1>Privacy</h1><div className="intro"><p>REISSUE uses your email to identify your account and protect access to it. Your display name can appear on public collections and campaign discussions.</p><p>Optional campaign preferences are shown to authorised brands as aggregates. Search history is off by default and can be enabled or cleared in your account settings. When aggregate search analytics are enabled, query events are collected without account identifiers.</p><p>Delete your account from your account settings to remove your saved products, private preferences and collections. Published discussions and campaign records may remain with the account reference removed.</p></div></div>;
+}

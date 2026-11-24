@@ -1,0 +1,12 @@
+CREATE INDEX supporters_by_user ON campaign_supporters(user_id);
+CREATE INDEX campaign_follows_by_user ON campaign_follows(user_id);
+CREATE INDEX brands_by_member ON brand_members(user_id);
+CREATE INDEX collections_by_owner ON collections(user_id,id DESC);
+CREATE INDEX notifications_by_update ON notifications(update_id);
+CREATE INDEX product_images_by_product ON product_images(product_id,id);
+CREATE INDEX product_submissions_queue ON product_submissions(id) WHERE status='pending';
+CREATE INDEX reports_queue ON moderation_reports(id) WHERE status='pending';
+CREATE INDEX import_jobs_owner ON import_jobs(user_id,brand_id,id DESC);
+CREATE TABLE platform_settings (key text PRIMARY KEY, value jsonb NOT NULL);
+INSERT INTO platform_settings(key,value) VALUES('submissions_open','true');
+ALTER TABLE profiles ADD COLUMN disabled_at timestamptz;

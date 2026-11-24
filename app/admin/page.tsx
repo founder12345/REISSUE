@@ -10,7 +10,7 @@ const back='/admin';
 export default async function Admin({searchParams}:{searchParams:Promise<Params>}){
   const [user,params]=await Promise.all([viewer(),searchParams]);
   if(user?.role!=='admin')notFound();
-  const [claims,submissions,campaigns,corrections,reports,products,analytics,zero,audit,users,synonyms,settings]=await Promise.all([
+  const [claims,submissions,campaigns,corrections,reports,products,analytics,zero,audit,users,synonyms,settings,inquiries]=await Promise.all([
     db.query<{id:string;brand:string;name:string;evidence:string}>(`SELECT r.id,b.name brand,p.name,r.evidence FROM brand_ownership_requests r JOIN brands b ON b.id=r.brand_id JOIN profiles p ON p.id=r.user_id WHERE r.status='pending' ORDER BY r.id LIMIT 50`),
     db.query<{id:string;data:Record<string,unknown>}>(`SELECT id,data FROM product_submissions WHERE status='pending' ORDER BY id LIMIT 50`),
     db.query<{id:string;title:string;status:string;}>(`SELECT c.id,c.title,c.status FROM campaigns c JOIN products p ON p.id=c.product_id WHERE p.deleted_at IS NULL ORDER BY (c.status='Under moderation') DESC,c.id DESC LIMIT 50`),
@@ -23,8 +23,10 @@ export default async function Admin({searchParams}:{searchParams:Promise<Params>
     db.query<{id:string;name:string;role:string;disabled_at:string|null}>('SELECT id,name,role,disabled_at FROM profiles ORDER BY created_at DESC LIMIT 50'),
     db.query<{term:string;replacement:string}>('SELECT term,replacement FROM search_synonyms ORDER BY term LIMIT 100'),
     db.query<{value:boolean}>("SELECT value FROM platform_settings WHERE key='submissions_open'"),
+    db.query<{id:string;kind:string;email:string|null;company:string|null;website:string|null;body:string}>('SELECT id,kind,email,company,website,body FROM launch_inquiries WHERE reviewed_at IS NULL ORDER BY id LIMIT 100'),
   ]);
   return <div className="wrap page"><h1>Archive moderation</h1><Notice params={params}/>
+    <section className="stack"><h2>Applications and feedback</h2>{inquiries.rows.length?inquiries.rows.map(item=><details className="panel" key={item.id}><summary>{item.company??'Community feedback'}</summary><p>{item.email}</p><p>{item.website}</p><p>{item.body}</p><Action name="admin-inquiry-reviewed" back={back} id={item.id}><button>Mark reviewed</button></Action></details>):<Empty>No new applications or feedback.</Empty>}</section>
     <section className="stack"><h2>Brand verification</h2>{claims.rows.length?claims.rows.map(c=><article className="panel stack" key={c.id}><h3>{c.brand}</h3><p>Submitted by {c.name}</p><p>{c.evidence}</p><div className="actions">
       <Action name="admin-claim" back={back} id={c.id} enabled><button>Verify and grant access</button></Action><Action name="admin-claim" back={back} id={c.id} enabled={false}><button className="secondary">Decline claim</button></Action>
     </div></article>):<Empty>No pending brand claims.</Empty>}</section>

@@ -15,8 +15,9 @@ export function SearchOverlay(){
     function shortcut(event:KeyboardEvent){
       if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==='k'){
         event.preventDefault();
-        dialog.current?.showModal();
+        if(!dialog.current?.open)dialog.current?.showModal();
         setOpen(true);
+        input.current?.focus();
       }
     }
     window.addEventListener('keydown',shortcut);
@@ -34,13 +35,21 @@ export function SearchOverlay(){
     return ()=>{clearTimeout(timer);ctrl.abort();};
   },[q,open]);
   const items=answer?.q===q?answer.items:[];
+  function openSearch(){
+    if(!dialog.current?.open)dialog.current?.showModal();
+    setOpen(true);
+    input.current?.focus();
+  }
+  useEffect(()=>{
+    if(selection>=0)document.getElementById('suggestion-'+selection)?.scrollIntoView({block:'nearest'});
+  },[selection]);
   function navigate(href:string){dialog.current?.close();router.push(href);}
   return <>
-    <button type="button" className="quiet search-trigger" onClick={()=>{dialog.current?.showModal();setOpen(true);input.current?.focus();}}><span aria-hidden="true">⌕</span> Search</button>
+    <button type="button" className="quiet search-trigger" onClick={openSearch}><span aria-hidden="true">⌕</span> Search</button>
     <dialog ref={dialog} onClose={()=>setOpen(false)} aria-label="Search the archive">
       <form onSubmit={event=>{event.preventDefault();navigate(items[selection]?.href??'/explore?q='+encodeURIComponent(q));}}>
         <div className="overlay-head"><label className="sr-only" htmlFor="command-query">Search the archive</label>
-          <input ref={input} id="command-query" placeholder="Search the archive" autoComplete="off" value={q}
+          <input ref={input} id="command-query" placeholder="Search the archive" autoComplete="off" aria-autocomplete="list" maxLength={120} value={q}
             role="combobox" aria-expanded={items.length>0} aria-controls="suggestions" aria-activedescendant={selection>=0&&items[selection]?'suggestion-'+selection:undefined}
             onChange={event=>{setQ(event.target.value);setSelection(-1);setFailed(null);}}
             onKeyDown={event=>{
@@ -50,7 +59,7 @@ export function SearchOverlay(){
             }}/>
           <button type="button" className="quiet" onClick={()=>dialog.current?.close()}>Close</button>
         </div>
-        <p className="small" role="status">{failed===q?'Suggestions unavailable. Press Enter to search.':answer?.q!==q?'Loading suggestions…':q?`${answer.total} matching archival products`:'Recent searches or popular queries'}</p>
+        <p className="small" role="status">{failed===q?'Suggestions unavailable. Press Enter to search.':answer?.q!==q?'Loading suggestions…':q?(answer.total?`${answer.total} matching archival products`:'No matching products. Press Enter to see search options.'):(items.length?'Recent searches or popular queries':'Try a product name, brand or reference.')}</p>
         <ul id="suggestions" role="listbox" aria-label="Search suggestions">
           {items.map((item,i)=><li id={'suggestion-'+i} role="option" aria-selected={selection===i} key={item.kind+item.href} onClick={()=>navigate(item.href)}>{item.label}<small>{item.kind}</small></li>)}
         </ul>

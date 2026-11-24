@@ -25,7 +25,8 @@ export default async function EditProduct({params,searchParams}:{params:Promise<
     <Action name="admin-edit-product" back={back} id={id}><CatalogueFields defaults={product}/><button>Save catalogue changes</button></Action></section>
     <section className="panel stack"><h2>Product photography</h2>{storageAvailable?<form className="action" action="/api/image-upload" method="post" encType="multipart/form-data">
       <input type="hidden" name="id" value={id}/><label>Authorised JPEG, PNG or WebP (up to 4 MB)<input type="file" name="image" accept="image/jpeg,image/png,image/webp" required/></label>
-      <label>Alternative text<input name="alt" minLength={3} maxLength={220} required/></label><label>Creator, source and usage rights<textarea name="attribution" minLength={8} maxLength={800} required/></label><button>Upload product photo</button>
+      <label>Alternative text<input name="alt" minLength={3} maxLength={220} required/></label><label>Creator, source and usage rights<textarea name="attribution" minLength={8} maxLength={800} required/></label><label>Source URL (optional)<input name="source" type="url" maxLength={1000}/></label>
+      <label>Licence URL (optional)<input name="licence" type="url" maxLength={1000}/></label><button>Upload product photo</button>
     </form>:<p>Image uploads become available when private object storage is configured.</p>}</section>
     <section className="panel stack"><h2>Merge duplicate</h2><p>Move campaigns, evidence and saved references to the canonical record and hide this duplicate.</p>
     <Action name="admin-merge-product" back="/admin" id={id}><label>Canonical product ID<input name="product" inputMode="numeric" pattern="[1-9][0-9]*" required/></label><button>Merge into canonical product</button></Action></section>

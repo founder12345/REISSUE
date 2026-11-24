@@ -1,0 +1,474 @@
+[
+  {
+    "query": "A1238",
+    "expected": "ipod-classic"
+  },
+  {
+    "query": "a1238",
+    "expected": "ipod-classic"
+  },
+  {
+    "query": "A123",
+    "expected": "ipod-classic"
+  },
+  {
+    "query": "iPod Classic",
+    "expected": "ipod-classic"
+  },
+  {
+    "query": "IPOD CLASSIC",
+    "expected": "ipod-classic"
+  },
+  {
+    "query": "iPod Clásśic",
+    "expected": "ipod-classic"
+  },
+  {
+    "query": "Apple iPod",
+    "expected": "ipod-classic"
+  },
+  {
+    "query": "ipod",
+    "expected": "ipod-classic"
+  },
+  {
+    "query": "iPod clas",
+    "expected": "ipod-classic"
+  },
+  {
+    "query": "ipod clasic",
+    "expected": "ipod-classic"
+  },
+  {
+    "query": "click wheel ipod",
+    "expected": "ipod-classic"
+  },
+  {
+    "query": "\"click wheel\"",
+    "expected": "ipod-classic"
+  },
+  {
+    "query": "apple music player",
+    "expected": "ipod-classic"
+  },
+  {
+    "query": "silver aluminium ipod",
+    "expected": "ipod-classic"
+  },
+  {
+    "query": "ipod 2007",
+    "expected": "ipod-classic"
+  },
+  {
+    "query": "apple A1238",
+    "expected": "ipod-classic"
+  },
+  {
+    "query": "pocket music player",
+    "expected": "ipod-classic"
+  },
+  {
+    "query": "find me the vintage ipod",
+    "expected": "ipod-classic"
+  },
+  {
+    "query": "TPS-L2",
+    "expected": "walkman-tps-l2"
+  },
+  {
+    "query": "tps-l2",
+    "expected": "walkman-tps-l2"
+  },
+  {
+    "query": "TPS L2",
+    "expected": "walkman-tps-l2"
+  },
+  {
+    "query": "Sony Walkman",
+    "expected": "walkman-tps-l2"
+  },
+  {
+    "query": "Walkman",
+    "expected": "walkman-tps-l2"
+  },
+  {
+    "query": "walkm",
+    "expected": "walkman-tps-l2"
+  },
+  {
+    "query": "walman",
+    "expected": "walkman-tps-l2"
+  },
+  {
+    "query": "walkmn",
+    "expected": "walkman-tps-l2"
+  },
+  {
+    "query": "SÓNY WALKMAN",
+    "expected": "walkman-tps-l2"
+  },
+  {
+    "query": "\"cassette player\"",
+    "expected": "walkman-tps-l2"
+  },
+  {
+    "query": "blue sony cassette",
+    "expected": "walkman-tps-l2"
+  },
+  {
+    "query": "sony 1979",
+    "expected": "walkman-tps-l2"
+  },
+  {
+    "query": "sony cassette player",
+    "expected": "walkman-tps-l2"
+  },
+  {
+    "query": "headphones",
+    "expected": "walkman-tps-l2"
+  },
+  {
+    "query": "metal cassette player",
+    "expected": "walkman-tps-l2"
+  },
+  {
+    "query": "show me the original walkman",
+    "expected": "walkman-tps-l2"
+  },
+  {
+    "query": "walkman tps-l2",
+    "expected": "walkman-tps-l2"
+  },
+  {
+    "query": "Olympus XA",
+    "expected": "olympus-xa"
+  },
+  {
+    "query": "OLYMPÜS XA",
+    "expected": "olympus-xa"
+  },
+  {
+    "query": "XA 35",
+    "expected": "olympus-xa"
+  },
+  {
+    "query": "xa",
+    "expected": "olympus-xa"
+  },
+  {
+    "query": "olympus",
+    "expected": "olympus-xa"
+  },
+  {
+    "query": "olymp",
+    "expected": "olympus-xa"
+  },
+  {
+    "query": "olympuus",
+    "expected": "olympus-xa"
+  },
+  {
+    "query": "camera",
+    "expected": "olympus-xa"
+  },
+  {
+    "query": "\"sliding lens cover\"",
+    "expected": "olympus-xa"
+  },
+  {
+    "query": "film camera",
+    "expected": "olympus-xa"
+  },
+  {
+    "query": "1979 olympus",
+    "expected": "olympus-xa"
+  },
+  {
+    "query": "pocketable rangefinder",
+    "expected": "olympus-xa"
+  },
+  {
+    "query": "black olympus",
+    "expected": "olympus-xa"
+  },
+  {
+    "query": "35 mm rangefinder",
+    "expected": "olympus-xa"
+  },
+  {
+    "query": "olympus photography",
+    "expected": "olympus-xa"
+  },
+  {
+    "query": "xa camera",
+    "expected": "olympus-xa"
+  },
+  {
+    "query": "old olympus xa",
+    "expected": "olympus-xa"
+  },
+  {
+    "query": "film cameras",
+    "expected": "olympus-xa"
+  },
+  {
+    "query": "ET66",
+    "expected": "braun-et66"
+  },
+  {
+    "query": "ET-66",
+    "expected": "braun-et66"
+  },
+  {
+    "query": "et66",
+    "expected": "braun-et66"
+  },
+  {
+    "query": "Braun ET66",
+    "expected": "braun-et66"
+  },
+  {
+    "query": "bráun et66",
+    "expected": "braun-et66"
+  },
+  {
+    "query": "braun",
+    "expected": "braun-et66"
+  },
+  {
+    "query": "brau",
+    "expected": "braun-et66"
+  },
+  {
+    "query": "braun calculator",
+    "expected": "braun-et66"
+  },
+  {
+    "query": "calculator",
+    "expected": "braun-et66"
+  },
+  {
+    "query": "calculators",
+    "expected": "braun-et66"
+  },
+  {
+    "query": "\"yellow equals button\"",
+    "expected": "braun-et66"
+  },
+  {
+    "query": "1987 braun",
+    "expected": "braun-et66"
+  },
+  {
+    "query": "yellow calculator",
+    "expected": "braun-et66"
+  },
+  {
+    "query": "black plastic calculator",
+    "expected": "braun-et66"
+  },
+  {
+    "query": "braun et-66",
+    "expected": "braun-et66"
+  },
+  {
+    "query": "pocket calculator",
+    "expected": "braun-et66"
+  },
+  {
+    "query": "original braun calculator",
+    "expected": "braun-et66"
+  },
+  {
+    "query": "design calculator",
+    "expected": "braun-et66"
+  },
+  {
+    "query": "F100",
+    "expected": "casio-f-100"
+  },
+  {
+    "query": "F-100",
+    "expected": "casio-f-100"
+  },
+  {
+    "query": "f100",
+    "expected": "casio-f-100"
+  },
+  {
+    "query": "Casio F-100",
+    "expected": "casio-f-100"
+  },
+  {
+    "query": "casío f100",
+    "expected": "casio-f-100"
+  },
+  {
+    "query": "casio",
+    "expected": "casio-f-100"
+  },
+  {
+    "query": "casi",
+    "expected": "casio-f-100"
+  },
+  {
+    "query": "digital watch",
+    "expected": "casio-f-100"
+  },
+  {
+    "query": "digital watches",
+    "expected": "casio-f-100"
+  },
+  {
+    "query": "1978 casio",
+    "expected": "casio-f-100"
+  },
+  {
+    "query": "casio resin",
+    "expected": "casio-f-100"
+  },
+  {
+    "query": "black casio",
+    "expected": "casio-f-100"
+  },
+  {
+    "query": "front button casio",
+    "expected": "casio-f-100"
+  },
+  {
+    "query": "casio watch",
+    "expected": "casio-f-100"
+  },
+  {
+    "query": "resin watch",
+    "expected": "casio-f-100"
+  },
+  {
+    "query": "vintage casio",
+    "expected": "casio-f-100"
+  },
+  {
+    "query": "find me a casio f100",
+    "expected": "casio-f-100"
+  },
+  {
+    "query": "DEMO-ASV",
+    "expected": "alpha-sv-archive"
+  },
+  {
+    "query": "demo-asv",
+    "expected": "alpha-sv-archive"
+  },
+  {
+    "query": "Alpha SV",
+    "expected": "alpha-sv-archive"
+  },
+  {
+    "query": "ALPHA SV",
+    "expected": "alpha-sv-archive"
+  },
+  {
+    "query": "alpha",
+    "expected": "alpha-sv-archive"
+  },
+  {
+    "query": "alph",
+    "expected": "alpha-sv-archive"
+  },
+  {
+    "query": "Arc’teryx",
+    "expected": "alpha-sv-archive"
+  },
+  {
+    "query": "arcteryx",
+    "expected": "alpha-sv-archive"
+  },
+  {
+    "query": "arctéryx",
+    "expected": "alpha-sv-archive"
+  },
+  {
+    "query": "arc teryx",
+    "expected": "alpha-sv-archive"
+  },
+  {
+    "query": "arc teryx alpha",
+    "expected": "alpha-sv-archive"
+  },
+  {
+    "query": "old navy arcteryx jacket",
+    "expected": "alpha-sv-archive"
+  },
+  {
+    "query": "navy jacket",
+    "expected": "alpha-sv-archive"
+  },
+  {
+    "query": "navy nylon shell",
+    "expected": "alpha-sv-archive"
+  },
+  {
+    "query": "1998 alpha sv",
+    "expected": "alpha-sv-archive"
+  },
+  {
+    "query": "shell jackets",
+    "expected": "alpha-sv-archive"
+  },
+  {
+    "query": "\"navy shell\"",
+    "expected": "alpha-sv-archive"
+  },
+  {
+    "query": "outdoor equipment",
+    "expected": "alpha-sv-archive"
+  },
+  {
+    "query": "zzzzzyyyyy",
+    "expected": null
+  },
+  {
+    "query": "QH9999",
+    "expected": null
+  },
+  {
+    "query": "sneakers",
+    "expected": null
+  },
+  {
+    "query": "Rolex Submariner",
+    "expected": null
+  },
+  {
+    "query": "Zeppelin transport",
+    "expected": null
+  },
+  {
+    "query": "Polaroid SX70",
+    "expected": null
+  },
+  {
+    "query": "\"front mounted\"",
+    "expected": null
+  },
+  {
+    "query": "\"cassette_player\"",
+    "expected": null
+  },
+  {
+    "query": "F-2000",
+    "expected": null
+  },
+  {
+    "query": "Nikon F6",
+    "expected": null
+  },
+  {
+    "query": "bicycle pump",
+    "expected": null
+  },
+  {
+    "query": "▲▼☉",
+    "expected": null
+  }
+]

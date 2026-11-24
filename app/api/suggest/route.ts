@@ -1,11 +1,13 @@
 import { NextRequest,NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { viewer } from '@/lib/auth';
+import { limit, viewer } from '@/lib/auth';
 import { search } from '@/lib/search';
 import { foldQuery } from '@/lib/ranking';
 
 export async function GET(request:NextRequest){
   const q=foldQuery(request.nextUrl.searchParams.get('q')??'');
+  const ip=process.env.VERCEL ? request.headers.get('x-vercel-forwarded-for')?.split(',')[0] : null;
+  if(ip && !await limit('suggest:'+ip,100,60))return NextResponse.json({error:'Too many requests'},{status:429,headers:{'Retry-After':'60'}});
   const items:{label:string;href:string;kind:string}[]=[];
   if(!q){
     const user=await viewer();

@@ -64,7 +64,7 @@ export async function POST(request:NextRequest) {
     if(action==='sign-in' || action==='register') {
       const email=z.email().max(254).parse(field('email').toLowerCase());
       const password=z.string().min(action==='register'?12:1).max(128).parse(form.get('password'));
-      const ip=request.headers.get('x-vercel-forwarded-for')?.split(',')[0] ?? 'local';
+      const ip=(process.env.VERCEL ? request.headers.get('x-vercel-forwarded-for')?.split(',')[0] : null) ?? 'local';
       check(await limit('auth:'+ip,60,600) && await limit('auth:'+email,12,600),'Please wait before trying again.');
       if(action==='sign-in') {
         const {rows}=await db.query<{id:string;password_hash:string}>('SELECT id,password_hash FROM profiles WHERE email=$1 AND disabled_at IS NULL',[email]);
@@ -76,15 +76,32 @@ export async function POST(request:NextRequest) {
       }
       return go(field('resume')||'/account');
     }
+    if(action==='brand-inquiry'||action==='feedback') {
+      const isBrand=action==='brand-inquiry';
+      const path=isBrand?'/founding-partners':'/feedback';
+      const message=isBrand?'Application received.':'Feedback received.';
+      if(field('contact_confirm'))return go(path,'notice',message);
+      const email=(field('email')||isBrand)?z.email().max(254).parse(field('email').toLowerCase()):null;
+      const ip=process.env.VERCEL ? request.headers.get('x-vercel-forwarded-for')?.split(',')[0] : null;
+      check(await limit('inquiry:'+action+':'+(ip??'local'),25,3600),'Please wait before submitting again.');
+      if(email)check(await limit('inquiry:'+action+':'+email,5,3600),'Please wait before submitting again.');
+      const website=isBrand?z.url({protocol:/^https?$/}).max(500).parse(field('website')):null;
+      await db.query('INSERT INTO launch_inquiries(kind,email,company,website,body) VALUES($1,$2,$3,$4,$5)',
+        [isBrand?'brand':'feedback',email,isBrand?text('company',120):null,website,text('body',2400,isBrand?15:10)]);
+      return go(path,'notice',message);
+    }
     const user=await viewer();
     if (!user) return go('/account?'+new URLSearchParams({resume:safe.slice(0,300)}),'notice','Sign in or create an account to continue.');
-    check(await limit('write:'+user.id+':'+action,action==='comment'?8:32,60),'Please wait before trying again.');
+    check(await limit('write:'+user.id,50,60) && (action!=='comment'||await limit('comment:'+user.id,8,60)),'Please wait before trying again.');
     const isAdmin=user.role==='admin';
     if(action==='sign-out') {await endSession();return go('/');}
     if(action==='delete-account') {
       const {rows}=await db.query<{password_hash:string}>('SELECT password_hash FROM profiles WHERE id=$1',[user.id]);
       check(await matchesPassword(z.string().min(1).max(128).parse(form.get('password')),rows[0]?.password_hash),'Password did not match.');
-      await db.query('DELETE FROM profiles WHERE id=$1',[user.id]);
+      await transaction(async client=>{
+        await client.query('DELETE FROM launch_inquiries WHERE email=$1',[user.email]);
+        await client.query('DELETE FROM profiles WHERE id=$1',[user.id]);
+      });
       await endSession();
       return go('/','notice','Your account was deleted.');
     }
@@ -137,12 +154,19 @@ export async function POST(request:NextRequest) {
         if(action==='import-preview') {
           let preview;
           try {preview=previewImport(text('data',55000),field('format'));} catch {throw new ActionError('Provide valid CSV or a JSON array of 1 to 100 catalogue records.');}
-          for (const r of preview.data) {
-            if(membership && !isAdmin && r.brand!==membership.slug) preview.errors.push(`Brand mismatch: ${r.slug}`);
-            const {rows}=await client.query<{valid:boolean;duplicate:boolean}>(`SELECT EXISTS(SELECT 1 FROM brands WHERE slug=$1) AND EXISTS(SELECT 1 FROM categories WHERE slug=$2) AS valid,
-            EXISTS(SELECT 1 FROM products p JOIN brands b ON b.id=p.brand_id WHERE p.slug=$3 OR (b.slug=$1 AND archive_fold(p.name)=archive_fold($4) AND archive_fold(coalesce(p.model,''))=archive_fold($5))) AS duplicate`,[r.brand,r.category,r.slug,r.name,r.model??'']);
-            if(!rows[0].valid) preview.errors.push('Unknown category or brand: '+r.slug);
-            if(rows[0].duplicate) preview.errors.push('Already in archive: '+r.slug);
+          const {rows}=await client.query<{slug:string;valid:boolean;duplicate:boolean}>(`
+            SELECT r.slug,b.id IS NOT NULL AND c.id IS NOT NULL AS valid,
+              EXISTS(SELECT 1 FROM products p WHERE p.slug=r.slug OR (p.brand_id=b.id
+                AND archive_fold(p.name)=archive_fold(r.name)
+                AND archive_fold(coalesce(p.model,''))=archive_fold(coalesce(r.model,'')))) AS duplicate
+            FROM jsonb_to_recordset($1::jsonb) r(slug text,brand text,category text,name text,model text)
+            LEFT JOIN brands b ON b.slug=r.brand LEFT JOIN categories c ON c.slug=r.category`,[JSON.stringify(preview.data)]);
+          for(const r of preview.data){
+            if(membership && !isAdmin && r.brand!==membership.slug)preview.errors.push('Brand mismatch: '+r.slug);
+          }
+          for(const row of rows){
+            if(!row.valid)preview.errors.push('Unknown category or brand: '+row.slug);
+            if(row.duplicate)preview.errors.push('Already in archive: '+row.slug);
           }
           await client.query('INSERT INTO import_jobs(user_id,brand_id,data,errors) VALUES($1,$2,$3,$4)',[user.id,brand,JSON.stringify(preview.data),JSON.stringify(preview.errors)]);
         } else {
@@ -249,7 +273,9 @@ export async function POST(request:NextRequest) {
           await audit(client,user.id,action,target,{canonical});
           return;
         }
-        if(action==='admin-claim') {
+        if(action==='admin-inquiry-reviewed') {
+          check((await client.query('UPDATE launch_inquiries SET reviewed_at=now() WHERE id=$1 AND reviewed_at IS NULL',[target])).rowCount,'Inquiry already reviewed.');
+        } else if(action==='admin-claim') {
           const {rows}=await client.query<{brand_id:string;user_id:string}>(`UPDATE brand_ownership_requests SET status=$2 WHERE id=$1 AND status='pending' RETURNING brand_id,user_id`,[target,toggle?'approved':'declined']);
           check(rows[0],'Claim already resolved.');
           if(toggle) await client.query('INSERT INTO brand_members(brand_id,user_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[rows[0].brand_id,rows[0].user_id]);

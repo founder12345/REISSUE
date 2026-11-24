@@ -1,10 +1,20 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { db } from '@/lib/db';
 import { viewer } from '@/lib/auth';
 import { Action,Empty,Notice,ProductVisual,first,type Params } from '../../ui';
 import { Share } from '../../share';
 export const dynamic='force-dynamic';
+export async function generateMetadata({params}:{params:Promise<{id:string}>}):Promise<Metadata>{
+  const {id}=await params;
+  if(!/^[1-9]\d{0,17}$/.test(id))return {title:'Campaign unavailable',robots:{index:false}};
+  const {rows:[campaign]}=await db.query<{title:string;description:string;demo:boolean}>(`SELECT c.title,c.description,p.demo FROM campaigns c JOIN products p ON p.id=c.product_id WHERE c.id=$1 AND p.deleted_at IS NULL AND c.status NOT IN ('Under moderation','Archived')`,[id]);
+  if(!campaign)return {title:'Campaign unavailable',robots:{index:false}};
+  const description=campaign.description.slice(0,240);
+  return {title:campaign.title,description,alternates:{canonical:'/campaigns/'+id},openGraph:{title:campaign.title,description,images:['/social.webp']},robots:{index:!campaign.demo,follow:true}};
+}
+
 export default async function Campaign({params,searchParams}:{params:Promise<{id:string}>;searchParams:Promise<Params>}){
   const [{id},query,user]=await Promise.all([params,searchParams,viewer()]);
   if(!/^[1-9]\d{0,17}$/.test(id))notFound();
@@ -25,16 +35,17 @@ export default async function Campaign({params,searchParams}:{params:Promise<{id
   if(first(query.from)==='search'&&process.env.SEARCH_ANALYTICS==='true')await db.query("INSERT INTO search_events(kind) VALUES('campaign')");
   const open=['Gathering interest','Ready for brand outreach','Brand contacted','Under brand review','Brand approved'].includes(c.status);
   return <div className="wrap page"><Link className="text-link" href={'/products/'+c.slug}>View archive product</Link><Notice params={query}/>
-    <section className="detail-grid"><ProductVisual product={c}/><div className="stack">
+    <section className="detail-grid"><ProductVisual product={c} featured/><div className="stack">
       <p className="kicker">{c.demo?'DEMO CAMPAIGN · ':''}{c.status.toUpperCase()}</p><h1>{c.title}</h1><p className="intro">{c.description}</p>
       <progress value={Math.min(c.supporters,c.target)} max={c.target} aria-label="Progress toward interest target"/><p><strong>{c.supporters}</strong> of {c.target} interested</p>
       {c.details.specifications&&<p>Desired specifications — {c.details.specifications}</p>}{c.details.variants&&<p>Preferred variants — {c.details.variants}</p>}
       {c.details.suggestedPrice!=null&&<p>Suggested price — {c.currency??'USD'} {c.details.suggestedPrice}</p>}
       <div className="actions">
+        {open&&!support?.rowCount&&<a className="button" href="#interest-form">Join this comeback</a>}
         {support?.rowCount?<Action name="interest" back={path} id={id} enabled={false}><button className="secondary">Withdraw interest</button></Action>:null}
         {c.status!=='Under moderation'&&<Action name="follow-campaign" back={path} id={id} enabled={!follow?.rowCount}><button className="secondary">{follow?.rowCount?'Unfollow campaign':'Follow campaign'}</button></Action>}<Share/>
       </div></div></section>
-    {open&&!support?.rowCount&&<section className="panel stack"><h2>Register interest</h2><p>Interest is non-binding. There is no order, deposit or payment.</p>
+    {open&&!support?.rowCount&&<section className="panel stack" id="interest-form"><h2>Register interest</h2><p>Interest is non-binding. You can register without giving price or variant preferences.</p>
       <Action name="interest" back={path} id={id} enabled>
         <div className="split"><label>Preferred price in {c.currency??'USD'}<input name="price" type="number" min="0" step=".01"/></label><label>Quantity<input name="quantity" type="number" min="1" max="100"/></label><label>Size or variant<input name="variant" maxLength={100}/></label><label>Country code<input name="country" aria-describedby="country-help" maxLength={2}/><small id="country-help">Two letters, such as FR or US.</small></label><label>Likelihood of purchase<select name="likelihood"><option value="">Prefer not to say</option>{[1,2,3,4,5].map(n=><option key={n} value={n}>{n}{n===1?' — Unlikely':n===5?' — Very likely':''}</option>)}</select></label></div><button>Register interest</button>
       </Action></section>}

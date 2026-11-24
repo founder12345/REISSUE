@@ -61,3 +61,9 @@ Set `CHROMIUM_PATH` to use an already installed Chromium binary.
 - [Search and ranking](docs/search.md)
 - [Security, limitations and launch checklist](docs/security-and-limitations.md)
 - [Future AI integration roadmap](docs/future-ai.md)
+
+## Vercel launch checks
+
+Run all migrations against the target database before promotion and use a separate seeded database for a private preview. Keep `APP_ORIGIN` aligned with the exact origin used by each environment. Verify `/robots.txt`, `/sitemap.xml`, sign-in, a catalogue query and a reversible campaign interest registration after deployment. If upgrading an existing local demo database, rerun `npm run db:seed` to load the five attributed replacement photographs.
+
+Run `npm run test:search` against a running seeded app to check the 118-case search corpus. The [launch audit](docs/launch-audit.md) documents implementation changes, local measurements and remaining production work. Review the [privacy](app/privacy/page.tsx) and [terms](app/terms/page.tsx) drafts before opening registration.

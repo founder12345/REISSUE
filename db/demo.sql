@@ -23,6 +23,13 @@ INSERT INTO campaigns(product_id,title,description,status)
 SELECT id,'Bring back the iPod Classic','An illustrative campaign for a dedicated music player with physical controls. This sample starts with zero supporters.','Gathering interest'
 FROM products WHERE slug='ipod-classic' AND demo
 ON CONFLICT DO NOTHING;
-INSERT INTO product_images(product_id,path,attribution,alt)
-SELECT id,'/archive-hero.webp','Original REISSUE illustration. It is a stylised interpretation of portable audio and does not document the original product.','Illustrative cassette player with headphones'
-FROM products p WHERE slug='walkman-tps-l2' AND demo AND NOT EXISTS(SELECT 1 FROM product_images i WHERE i.product_id=p.id);
+INSERT INTO product_images(product_id,path,attribution,alt,source_url,license_url)
+SELECT p.id,'/archive/'||i.slug||'.webp',i.credit,i.alt,i.source,i.license
+FROM (VALUES
+  ('walkman-tps-l2','Anna Gerdén · CC BY-SA 3.0 · resized and converted to WebP','Blue and silver Sony Walkman TPS-L2 cassette player','https://commons.wikimedia.org/wiki/File:Walkman_TPS-L2.jpg','https://creativecommons.org/licenses/by-sa/3.0/'),
+  ('ipod-classic','Evan-Amos · Public domain · resized and converted to WebP','Sixth-generation iPod Classic','https://commons.wikimedia.org/wiki/File:Ipod-classic-6th-gen.jpg','https://creativecommons.org/publicdomain/mark/1.0/'),
+  ('olympus-xa','D. Meyer · CC BY-SA 3.0 · resized and converted to WebP','Olympus XA camera with a roll of film','https://commons.wikimedia.org/wiki/File:Olympus_XA_camera_and_film.jpg','https://creativecommons.org/licenses/by-sa/3.0/'),
+  ('braun-et66','Pinot Dita · CC BY-SA 2.0 · resized and converted to WebP','Braun ET66 calculator','https://commons.wikimedia.org/wiki/File:1987_Braun_calculator_ET66_by_Dieter_Rams_%2813964223413%29.jpg','https://creativecommons.org/licenses/by-sa/2.0/'),
+  ('casio-f-100','Kaktis788 · CC BY-SA 4.0 · resized and converted to WebP','Casio 52-F-100 digital watch','https://commons.wikimedia.org/wiki/File:RARE_%D0%95LIEN_CASIO_CHRONOGRAPH_52-F-100.jpg','https://creativecommons.org/licenses/by-sa/4.0/')
+) i(slug,credit,alt,source,license) JOIN products p ON p.slug=i.slug AND p.demo
+WHERE NOT EXISTS(SELECT 1 FROM product_images x WHERE x.product_id=p.id AND x.path='/archive/'||i.slug||'.webp');

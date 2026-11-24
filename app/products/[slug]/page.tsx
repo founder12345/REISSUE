@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -8,11 +9,11 @@ import { catalogue,type Product } from '@/lib/search';
 import { Action,Empty,Notice,ProductGrid,ProductVisual,first,type Params } from '../../ui';
 import { Share } from '../../share';
 export const dynamic='force-dynamic';
-const find=async (slug:string)=>(await db.query<Product>(`${catalogue} WHERE p.slug=$1 AND p.deleted_at IS NULL`,[slug])).rows[0];
+const find=cache(async (slug:string)=>(await db.query<Product>(`${catalogue} WHERE p.slug=$1 AND p.deleted_at IS NULL`,[slug])).rows[0]);
 export async function generateMetadata({params}:{params:Promise<{slug:string}>}):Promise<Metadata>{
   const {slug}=await params;
   const p=await find(slug);
-  return p?{title:p.name,description:p.description,robots:{index:!p.demo&&p.verification==='verified',follow:true}}:{title:'Product unavailable'};
+  return p?{title:p.name,description:p.description,openGraph:{title:p.name,description:p.description.slice(0,240),images:[p.image??'/social.webp']},alternates:{canonical:'/products/'+p.slug},robots:{index:!p.demo&&p.verification==='verified',follow:true}}:{title:'Product unavailable'};
 }
 export default async function ProductPage({params,searchParams}:{params:Promise<{slug:string}>;searchParams:Promise<Params>}){
   const [{slug},query,user]=await Promise.all([params,searchParams,viewer()]);
@@ -22,7 +23,7 @@ export default async function ProductPage({params,searchParams}:{params:Promise<
   const [sources,specs,images,related,saves,collections,following]=await Promise.all([
     db.query<{url:string;label:string}>('SELECT url,label FROM product_sources WHERE product_id=$1 ORDER BY label',[p.id]),
     db.query<{name:string;value:string}>('SELECT name,value FROM product_attributes WHERE product_id=$1 ORDER BY name',[p.id]),
-    db.query<{path:string;alt:string;attribution:string}>('SELECT path,alt,attribution FROM product_images WHERE product_id=$1 ORDER BY id',[p.id]),
+    db.query<{path:string;alt:string;attribution:string;source_url:string|null;license_url:string|null}>('SELECT path,alt,attribution,source_url,license_url FROM product_images WHERE product_id=$1 ORDER BY id',[p.id]),
     db.query<Product>(`${catalogue} WHERE p.deleted_at IS NULL AND p.id<>$1 AND (p.category_id=(SELECT category_id FROM products WHERE id=$1) OR p.brand_id=$2 OR p.colours && $3::text[] OR p.materials && $4::text[]) ORDER BY (p.brand_id=$2) DESC,(p.category_id=(SELECT category_id FROM products WHERE id=$1)) DESC,p.id DESC LIMIT 4`,[p.id,p.brand_id,p.colours,p.materials]),
     user?db.query('SELECT 1 FROM saved_products WHERE user_id=$1 AND product_id=$2',[user.id,p.id]):null,
     user?db.query<{id:string;title:string;included:boolean}>('SELECT c.id,c.title,EXISTS(SELECT 1 FROM collection_items i WHERE i.collection_id=c.id AND product_id=$2) included FROM collections c WHERE user_id=$1 ORDER BY c.id DESC LIMIT 40',[user.id,p.id]):null,
@@ -30,9 +31,9 @@ export default async function ProductPage({params,searchParams}:{params:Promise<
   ]);
   if(first(query.from)==='search'&&process.env.SEARCH_ANALYTICS==='true')await db.query("INSERT INTO search_events(kind) VALUES('product')");
   return <div className="wrap page"><Link className="text-link" href="/explore">Explore the archive</Link><Notice params={query}/>
-    <section className="detail-grid"><div><ProductVisual product={p}/>
+    <section className="detail-grid"><div><ProductVisual product={p} featured/>
       {images.rows.length>0&&<div className="stack">{images.rows.map((img,i)=>img.path.startsWith('/')&&!img.path.startsWith('//')?<figure key={img.path}>
-        {i>0&&<Image src={img.path} width={650} height={480} alt={img.alt}/>}<figcaption className="small">{img.attribution}</figcaption>
+        {i>0&&<Image src={img.path} width={650} height={480} alt={img.alt}/>}<figcaption className="small">{img.attribution}{img.source_url&&<> · <a href={img.source_url}>Source</a></>}{img.license_url&&<> · <a href={img.license_url}>Licence</a></>}</figcaption>
       </figure>:null)}</div>}
     </div><div className="stack">
       <p className="kicker">{p.brand} · {p.category}</p><h1>{p.name}</h1><p className="intro">{p.description}</p>

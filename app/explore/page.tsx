@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { unstable_cache } from 'next/cache';
 import { db } from '@/lib/db';
 import { search } from '@/lib/search';
 import { viewer } from '@/lib/auth';
@@ -11,13 +12,7 @@ const filters=[
   ['decade','Decade'],['colour','Colour'],['material','Material'],['country','Country of origin'],['currency','Currency'],['availability','Availability'],
   ['verification','Verification'],['status','Campaign status'],
 ] as const;
-export default async function Explore({searchParams}:{searchParams:Promise<Params>}){
-  const params=await searchParams;
-  const url=queryParams(params);
-  const q=first(params.q)?.slice(0,120)??'';
-  const [result,options,user]=await Promise.all([
-    search(url),
-    db.query<{kind:string;value:string;label:string}>(`
+const archiveFacets = unstable_cache(async () => (db.query<{kind:string;value:string;label:string}>(`
     SELECT 'category' kind,slug value,name label FROM categories UNION ALL SELECT 'brand',slug,name FROM brands
     UNION ALL SELECT DISTINCT f.kind,f.value,f.value FROM products p
     CROSS JOIN LATERAL (VALUES ('subcategory',p.subcategory),('year',p.release_year::text),('ended',p.discontinued_year::text),
@@ -25,7 +20,14 @@ export default async function Explore({searchParams}:{searchParams:Promise<Param
     WHERE p.deleted_at IS NULL AND f.value IS NOT NULL UNION ALL
     SELECT DISTINCT 'colour',unnest(colours),unnest(colours) FROM products WHERE deleted_at IS NULL UNION ALL
     SELECT DISTINCT 'material',unnest(materials),unnest(materials) FROM products WHERE deleted_at IS NULL UNION ALL
-    SELECT DISTINCT 'status',status,status FROM campaigns WHERE status<>'Under moderation' ORDER BY kind,label`),
+    SELECT DISTINCT 'status',status,status FROM campaigns WHERE status<>'Under moderation' ORDER BY kind,label`)).then(result=>result.rows), ['archive-facets-v1'], {revalidate:60});
+export default async function Explore({searchParams}:{searchParams:Promise<Params>}){
+  const params=await searchParams;
+  const url=queryParams(params);
+  const q=first(params.q)?.slice(0,120)??'';
+  const [result,options,user]=await Promise.all([
+    search(url),
+    archiveFacets(),
     viewer(),
   ]);
   const folded=foldQuery(q);
@@ -46,15 +48,15 @@ export default async function Explore({searchParams}:{searchParams:Promise<Param
         <label>Sort by<select name="sort" defaultValue={first(params.sort)??''}><option value="">Relevance</option><option value="newest">Recently added</option><option value="oldest">Earliest release</option><option value="demand">Most requested</option></select></label>
         <details className="filter-drawer"><summary>Catalogue filters</summary>
           {filters.map(([key,label])=>{
-            const values=options.rows.filter(x=>x.kind===key);
+            const values=options.filter(x=>x.kind===key);
             return values.length?<fieldset key={key}><legend>{label}</legend><div className="filter-values">{values.map(v=><label className="check" key={v.value}><input type="checkbox" name={key} value={v.value} defaultChecked={url.getAll(key).includes(v.value)}/>{v.label}</label>)}</div></fieldset>:null;
           })}
           {([['minPrice','Minimum original price'],['maxPrice','Maximum original price'],['minDemand','Minimum registered interest']] as const).map(([key,label])=><label key={key}>{label}<input type="number" name={key} min="0" step={key==='minDemand'?'1':'.01'} defaultValue={first(params[key])}/></label>)}
         </details>
         <button>Apply search and filters</button><Link href={q?'/explore?'+new URLSearchParams({q}):'/explore'}>Clear filters</Link>
       </form>
-      <section><p className="results-count">{result.total} {result.total===1?'product':'products'}{q?' for “'+q+'”':''}</p>
-        {result.products.length?<ProductGrid products={result.products} q={q}/>:<Empty>No catalogue entries match. Try fewer filters or <Link href="/submit">submit a missing product</Link>.</Empty>}
+      <section><h2 className="results-count">{result.total} {result.total===1?'product':'products'}{q?' for “'+q+'”':''}</h2>
+        {result.products.length?<ProductGrid products={result.products} q={q}/>:<Empty>No archive records match. Try fewer filters or <Link href={'/submit?'+new URLSearchParams({name:q})}>request an addition to the archive</Link>.</Empty>}
         {result.next&&<Link className="button secondary" href={'/explore?'+next}>Next page</Link>}
       </section>
     </div>

@@ -31,9 +31,11 @@ export async function POST(request:NextRequest){
     id:z.string().regex(/^[1-9]\d{0,17}$/),
     alt:z.string().trim().min(3).max(220),
     attribution:z.string().trim().min(8).max(800),
+    source:z.union([z.url({protocol:/^https?$/}).max(1000),z.literal('')]).optional(),
+    licence:z.union([z.url({protocol:/^https?$/}).max(1000),z.literal('')]).optional(),
   }).safeParse(Object.fromEntries(body));
   if(!fields.success)return new NextResponse('Check the submitted fields',{status:400});
-  const {id,alt,attribution}=fields.data;
+  const {id,alt,attribution,source,licence}=fields.data;
   const redirect=(key:'error'|'notice',message:string)=>{
     const destination=new URL('/admin/products/'+id,origin);
     destination.searchParams.set(key,message);
@@ -54,8 +56,8 @@ export async function POST(request:NextRequest){
     await transaction(async client=>{
       const product=await client.query('SELECT 1 FROM products WHERE id=$1 AND deleted_at IS NULL FOR UPDATE',[id]);
       if(!product.rowCount)throw Error('Missing product');
-      const {rows}=await client.query<{id:string}>(`INSERT INTO product_images(product_id,path,object_key,attribution,alt,width,height)
-        VALUES($1,'/media/'||$2::text,$3,$4,$5,$6,$7) RETURNING id`,[id,key.split('/')[1].replace('.webp',''),key,attribution,alt,info.width,info.height]);
+      const {rows}=await client.query<{id:string}>(`INSERT INTO product_images(product_id,path,object_key,attribution,alt,width,height,source_url,license_url)
+        VALUES($1,'/media/'||$2::text,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,[id,key.split('/')[1].replace('.webp',''),key,attribution,alt,info.width,info.height,source||null,licence||null]);
       await client.query("INSERT INTO audit_logs(actor_id,action,target,details) VALUES($1,'image-upload',$2,$3)",[user.id,id,JSON.stringify({imageId:rows[0].id})]);
     });
     return redirect('notice','Attributed image uploaded.');

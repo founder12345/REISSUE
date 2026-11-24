@@ -1,5 +1,5 @@
 export const weights = {
-  identifier: 1000, title: 300, brand: 70, titleSimilarity: 35,
+  identifier: 1000, identifierPrefix: 150, title: 300, brand: 70, titleSimilarity: 35,
   fullText: 55, phrase: 45, attributes: 24, aliases: 16, verified: 4, engagementCap: 5,
 };
 export const filterKeys = ['category','subcategory','brand','year','ended','decade','colour','material','availability','country','status','verification','currency'] as const;

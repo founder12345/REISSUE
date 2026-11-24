@@ -9,13 +9,11 @@ Use Node.js 24, npm and Docker Compose. You can substitute a PostgreSQL database
 ```sh
 npm ci
 cp .env.example .env.local
-docker compose up -d
-npm run db:migrate
-npm run db:seed
+npm run setup:internal
 npm run dev
 ```
 
-Open [localhost:3000](http://localhost:3000). The optional seed creates six labelled demo products and one demo campaign with zero initial supporters. New accounts have regular member access. Use the admin bootstrap command with a unique password to review submissions and verify brand claims.
+Open [localhost:3000](http://localhost:3000). The internal setup waits for PostgreSQL, applies migrations, and loads six labelled demo products and one demo campaign. The demo campaign starts with zero supporters. New accounts have regular member access. Use the admin bootstrap command with a unique password to review submissions and verify brand claims.
 
 ```sh
 ADMIN_EMAIL=moderator@example.test ADMIN_PASSWORD='<a unique password of 12 or more characters>' \

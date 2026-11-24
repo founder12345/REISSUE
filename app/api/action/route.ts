@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { configuredOrigin } from '@/lib/site';
 import { db, transaction } from '@/lib/db';
 import { endSession, limit, matchesPassword, passwordHash, startSession, viewer } from '@/lib/auth';
 import { editProduct, insertProduct, mergeProduct, previewImport, record } from '@/lib/ingestion';
@@ -22,7 +23,7 @@ async function updateCampaign(client:PoolClient,id:string,actor:string,body:stri
 }
 
 export async function POST(request:NextRequest) {
-  const origin=process.env.APP_ORIGIN ?? request.nextUrl.origin;
+  const origin=configuredOrigin() ?? request.nextUrl.origin;
   if (request.headers.get('origin')!==origin) return new NextResponse('Invalid request origin',{status:403});
   if(!request.headers.get('content-type')?.startsWith('application/x-www-form-urlencoded'))return new NextResponse('Unsupported form format',{status:415});
   const reader=request.body?.getReader();

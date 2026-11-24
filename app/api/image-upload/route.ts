@@ -2,12 +2,13 @@ import { randomUUID } from 'node:crypto';
 import { NextRequest,NextResponse } from 'next/server';
 import sharp from 'sharp';
 import { z } from 'zod';
+import { configuredOrigin } from '@/lib/site';
 import { limit,viewer } from '@/lib/auth';
 import { transaction } from '@/lib/db';
 import { putImage,removeImage,storageAvailable } from '@/lib/storage';
 
 export async function POST(request:NextRequest){
-  const origin=process.env.APP_ORIGIN??request.nextUrl.origin;
+  const origin=configuredOrigin()??request.nextUrl.origin;
   if(request.headers.get('origin')!==origin)return new NextResponse('Invalid request origin',{status:403});
   const user=await viewer();
   if(user?.role!=='admin')return new NextResponse('Not found',{status:404});

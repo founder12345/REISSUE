@@ -3,6 +3,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { SearchOverlay } from './search-overlay';
 import { siteOrigin } from '@/lib/site';
+import { Suspense } from 'react';
+import { CookieBanner } from './cookie-controls';
 import './style.css';
 
 export const metadata:Metadata={
@@ -21,6 +23,7 @@ export default function Layout({children}:{children:React.ReactNode}){
       <div className="utilities"><SearchOverlay/><Link prefetch={false} href="/account#saved">Saved</Link><Link prefetch={false} className="account-link" href="/account">Account</Link></div>
     </div></header>
     <main id="main">{children}</main>
-    <footer className="site-footer"><div className="wrap footer-inner"><div><Link prefetch={false} className="wordmark" aria-label="Reissue home" href="/"><Image src="/wordmark.svg" alt="" width={125} height={25}/></Link><p>Bring back what you love.</p></div><div><Link prefetch={false} href="/submit">Submit a product</Link><Link prefetch={false} href="/brands">For brands</Link><Link prefetch={false} href="/privacy">Privacy</Link><Link prefetch={false} href="/terms">Terms</Link><Link prefetch={false} href="/feedback">Feedback</Link></div><small>Conditra Studio</small></div></footer>
+    <Suspense><CookieBanner/></Suspense>
+    <footer className="site-footer"><div className="wrap footer-inner"><div><Link prefetch={false} className="wordmark" aria-label="Reissue home" href="/"><Image src="/wordmark.svg" alt="" width={125} height={25}/></Link><p>Bring back what you love.</p></div><div><Link prefetch={false} href="/submit">Submit a product</Link><Link prefetch={false} href="/brands">For brands</Link><Link prefetch={false} href="/privacy">Privacy</Link><Link prefetch={false} href="/cookies">Cookie settings</Link><Link prefetch={false} href="/terms">Terms</Link><Link prefetch={false} href="/policies/legal-notice">Legal notice</Link><Link prefetch={false} href="/report-content">Report content</Link><Link prefetch={false} href="/feedback">Feedback</Link></div><small>Conditra Studio</small></div></footer>
   </body></html>;
 }

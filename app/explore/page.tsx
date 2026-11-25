@@ -1,10 +1,11 @@
+import { consent } from '@/lib/consent';
 import Link from 'next/link';
 import { unstable_cache } from 'next/cache';
 import { db } from '@/lib/db';
 import { search } from '@/lib/search';
 import { viewer } from '@/lib/auth';
 import { foldQuery } from '@/lib/ranking';
-import { Empty,ProductGrid,first,queryParams,type Params } from '../ui';
+import { Action,Empty,Notice,ProductGrid,first,queryParams,type Params } from '../ui';
 
 export const dynamic='force-dynamic';
 const filters=[
@@ -35,14 +36,15 @@ export default async function Explore({searchParams}:{searchParams:Promise<Param
     const safe=!/@|https?:|\d[\d\s-]{7,}\d/i.test(folded);
     await Promise.all([
       user?.search_history ? db.query(`INSERT INTO search_history(user_id,query) VALUES($1,$2) ON CONFLICT(user_id,query) DO UPDATE SET used_at=now()`,[user.id,folded]):null,
-      process.env.SEARCH_ANALYTICS==='true'&&safe ? db.query("INSERT INTO search_events(kind,query,result_count) VALUES('search',$1,$2)",[folded,result.total]):null,
+      (await consent()).analytics&&safe ? db.query("INSERT INTO search_events(kind,query,result_count) VALUES('search',$1,$2)",[folded,result.total]):null,
     ]);
   }
   const next=new URLSearchParams(url);
   if(result.next)next.set('cursor',result.next);
   next.delete('notice');next.delete('error');
   return <div className="wrap page">
-    <p className="kicker">THE PRODUCT ARCHIVE</p><h1>Explore</h1>
+    <Notice params={params}/><p className="kicker">THE PRODUCT ARCHIVE</p><h1>Explore</h1>
+    {q&&<div className="account-links"><Action name="save-search" back={'/explore?'+new URLSearchParams({q})} enabled fields={{query:q}}><button className="secondary">Save this search</button></Action></div>}
     <div className="search-layout">
       <form action="/explore" className="filters panel"><label>Search<input name="q" defaultValue={q} placeholder="Brand, model or product" maxLength={120}/></label>
         <label>Sort by<select name="sort" defaultValue={first(params.sort)??''}><option value="">Relevance</option><option value="newest">Recently added</option><option value="oldest">Earliest release</option><option value="demand">Most requested</option></select></label>

@@ -1,23 +1,13 @@
-import { expect,test,type APIRequestContext,type Browser } from '@playwright/test';
+import { expect,test,type Browser } from '@playwright/test';
 import { Pool } from 'pg';
 
-const origin='http://localhost:3210';
+import { action,mailLink,origin,password,register,username } from './helpers';
 const nonce=Date.now().toString(36);
-const password='Comeback-archive-2026!';
 const member='member-'+nonce+'@example.test';
 const brandEmail='brand-'+nonce+'@example.test';
 const admin=process.env.TEST_ADMIN_EMAIL;
 const adminPassword=process.env.TEST_ADMIN_PASSWORD;
 
-async function action(request:APIRequestContext,form:Record<string,string>) {
-  const response=await request.post('/api/action',{form:{returnTo:'/account',...form},headers:{origin},maxRedirects:0});
-  expect(response.status()).toBe(303);
-  return decodeURIComponent(response.headers().location.replaceAll('+',' '));
-}
-async function register(request:APIRequestContext,email:string,name:string){
-  const location=await action(request,{action:'register',email,name,password});
-  expect(location).toBe(origin+'/account');
-}
 async function moderator(browser:Browser){
   if(!admin||!adminPassword)throw Error('Set TEST_ADMIN_EMAIL and TEST_ADMIN_PASSWORD to an administrator on the disposable test database.');
   const context=await browser.newContext();
@@ -70,7 +60,13 @@ test('consumer discovery, interest, saved products, brand verification and offic
   await registration.getByLabel('Public display name').fill('Archive member');
   await registration.getByLabel('Email').fill(member);
   await registration.getByLabel('Password (at least 12 characters)').fill(password);
+  await registration.getByLabel('Username').fill(username(member));
+  await registration.getByRole('checkbox',{name:/I accept/}).check();
   await registration.getByRole('button',{name:'Create account'}).click();
+  await expect(page.getByRole('heading',{name:'Verify your email'})).toBeVisible();
+  await page.goto((await mailLink(member)).href);
+  await page.getByLabel('Your registration password').fill(password);
+  await page.getByRole('button',{name:'Verify email'}).click();
   await expect(page.getByRole('heading',{name:'Archive member'})).toBeVisible();
   await page.goto('/');
   await page.getByRole('textbox',{name:'Search the archive'}).filter({visible:true}).fill('iPod');
@@ -81,7 +77,10 @@ test('consumer discovery, interest, saved products, brand verification and offic
   await page.getByRole('link',{name:'Bring it back'}).click();
   await expect(page).toHaveURL(/\/campaigns\/\d+/);
   const campaignId=page.url().match(/campaigns\/(\d+)/)?.[1]??'';
+  await page.getByRole('button',{name:'Save campaign',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Remove saved campaign'})).toBeVisible();
   await page.getByLabel('Preferred price in USD').fill('150');
+  await page.getByLabel('Range maximum (USD)').fill('220');
   await page.getByRole('button',{name:'Register interest'}).click();
   await expect(page.getByRole('button',{name:'Withdraw interest'})).toBeVisible();
   await action(page.request,{action:'interest',id:campaignId,enabled:'true',price:'155'});
@@ -148,11 +147,25 @@ test('collection isolation, import preview/commit, submission, campaign creation
   expect((await one.request.get('/products/'+slug)).status()).toBe(200);
   const page=await one.newPage();
   await page.goto('/products/'+slug);
+  await page.getByRole('button',{name:'Bring it back'}).click();
+  await page.getByRole('link',{name:'Continue to proposal'}).click();
+  await expect(page.getByRole('heading',{name:'Write your proposal'})).toBeVisible();
+  const draftUrl=page.url();
+  expect((await two.request.get(draftUrl)).status()).toBe(404);
+  const draftId=new URL(draftUrl).pathname.split('/').at(-1)??'';
+  expect(await action(two.request,{action:'campaign-draft-save',id:draftId,title:'Someone else’s draft'})).toContain('Draft unavailable');
   await page.getByLabel('Why should it come back?').fill('There is a place in the archive for this product.');
-  await page.getByRole('button',{name:'Submit campaign for review'}).click();
+  await page.getByRole('button',{name:'Save and review'}).click();
+  await expect(page.getByRole('heading',{name:'Review your campaign'})).toBeVisible();
+  for(const checkbox of await page.getByRole('checkbox').all())await checkbox.check();
+  await page.getByRole('button',{name:'Submit for moderation'}).click();
   await expect(page.getByText('UNDER MODERATION')).toBeVisible();
   expect((await two.request.get(page.url())).status()).toBe(404);
-  expect(await action(one.request,{action:'submit-product',returnTo:'/submit',slug:'submitted-'+nonce,name:'Submitted archive '+nonce,brand:'sony',category:'audio',description:'Documented audio fixture'})).toContain('Product submitted for review');
+  const campaignPath=new URL(page.url()).pathname;
+  const campaignId=campaignPath.split('/').at(-1)??'';
+  expect(await action(mod.request,{action:'campaign-status',id:campaignId,status:'Gathering interest',body:'Reviewed and approved for public interest.'})).toContain('Changes saved.');
+  expect((await two.request.get(campaignPath)).status()).toBe(200);
+  expect(await action(one.request,{action:'submit-product',returnTo:'/submit',slug:'submitted-'+nonce,name:'Submitted archive '+nonce,brand:'sony',category:'audio',description:'Documented audio fixture',rights:'yes'})).toContain('Product submitted for review');
   expect(await action(one.request,{action:'submit-product',returnTo:'/submit',slug:'INVALID',name:'X'})).toContain('Check the submitted fields');
   const invalidOrigin=await one.request.post('/api/action',{headers:{origin:'https://example.com'},form:{action:'sign-out'}});
   expect(invalidOrigin.status()).toBe(403);

@@ -27,7 +27,7 @@ try {
     const password=process.env.ADMIN_PASSWORD;
     if (!email || !password || password.length < 12 || password.length > 128) throw new Error('Set ADMIN_EMAIL and ADMIN_PASSWORD (12–128 characters).');
     const salt=randomBytes(16).toString('hex');
-    await db.query("INSERT INTO profiles(email,name,password_hash,role) VALUES($1,'Archive administrator',$2,'admin')",[email,salt+':'+scryptSync(password,salt,64).toString('hex')]);
+    await db.query("INSERT INTO profiles(email,name,password_hash,role,verification_required) VALUES($1,'Archive administrator',$2,'admin',false)",[email,salt+':'+scryptSync(password,salt,64).toString('hex')]);
   } else throw new Error('Use migrate, seed or admin.');
   await db.query('COMMIT');
 } catch(error) {

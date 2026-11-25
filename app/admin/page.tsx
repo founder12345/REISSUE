@@ -1,6 +1,7 @@
+import { ConfirmButton } from '../confirm-button';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { db } from '@/lib/db';
+import { asActor,db } from '@/lib/db';
 import { viewer } from '@/lib/auth';
 import { Action,Empty,Notice,type Params } from '../ui';
 import { CatalogueFields } from '../catalogue-fields';
@@ -10,7 +11,7 @@ const back='/admin';
 export default async function Admin({searchParams}:{searchParams:Promise<Params>}){
   const [user,params]=await Promise.all([viewer(),searchParams]);
   if(user?.role!=='admin')notFound();
-  const [claims,submissions,campaigns,corrections,reports,products,analytics,zero,audit,users,synonyms,settings,inquiries]=await Promise.all([
+  const [claims,submissions,campaigns,corrections,reports,products,analytics,zero,audit,users,synonyms,settings,inquiries,rights]=await Promise.all([
     db.query<{id:string;brand:string;name:string;evidence:string}>(`SELECT r.id,b.name brand,p.name,r.evidence FROM brand_ownership_requests r JOIN brands b ON b.id=r.brand_id JOIN profiles p ON p.id=r.user_id WHERE r.status='pending' ORDER BY r.id LIMIT 50`),
     db.query<{id:string;data:Record<string,unknown>}>(`SELECT id,data FROM product_submissions WHERE status='pending' ORDER BY id LIMIT 50`),
     db.query<{id:string;title:string;status:string;}>(`SELECT c.id,c.title,c.status FROM campaigns c JOIN products p ON p.id=c.product_id WHERE p.deleted_at IS NULL ORDER BY (c.status='Under moderation') DESC,c.id DESC LIMIT 50`),
@@ -24,8 +25,15 @@ export default async function Admin({searchParams}:{searchParams:Promise<Params>
     db.query<{term:string;replacement:string}>('SELECT term,replacement FROM search_synonyms ORDER BY term LIMIT 100'),
     db.query<{value:boolean}>("SELECT value FROM platform_settings WHERE key='submissions_open'"),
     db.query<{id:string;kind:string;email:string|null;company:string|null;website:string|null;body:string}>('SELECT id,kind,email,company,website,body FROM launch_inquiries WHERE reviewed_at IS NULL ORDER BY id LIMIT 100'),
+    asActor(user.id,client=>client.query<{id:string;kind:string;contact:string|null;target:string|null;statement:string;status:string;response:string|null}>(`SELECT id,kind,contact,target,statement,status,response FROM rights_cases
+      WHERE status<>'closed' ORDER BY created_at LIMIT 100`)),
   ]);
   return <div className="wrap page"><h1>Archive moderation</h1><Notice params={params}/>
+    <section className="stack"><h2>Privacy and content cases</h2>{rights.rows.length?rights.rows.map(item=><details className="panel" key={item.id}>
+      <summary>{item.kind} · {item.status}</summary>{item.contact&&<p>Contact · {item.contact}</p>}{item.target&&<p>Reported URL · {item.target}</p>}<p>{item.statement}</p>
+      <Action name="admin-rights-review" back={back} id={item.id}><label>Status<select name="status"><option value="reviewing">Reviewing</option><option value="closed">Closed</option></select></label>
+      <label>Response<textarea name="body" required maxLength={3000} defaultValue={item.response??''}/></label><button>Update case</button></Action>
+    </details>):<Empty>No open cases.</Empty>}</section>
     <section className="stack"><h2>Applications and feedback</h2>{inquiries.rows.length?inquiries.rows.map(item=><details className="panel" key={item.id}><summary>{item.company??'Community feedback'}</summary><p>{item.email}</p><p>{item.website}</p><p>{item.body}</p><Action name="admin-inquiry-reviewed" back={back} id={item.id}><button>Mark reviewed</button></Action></details>):<Empty>No new applications or feedback.</Empty>}</section>
     <section className="stack"><h2>Brand verification</h2>{claims.rows.length?claims.rows.map(c=><article className="panel stack" key={c.id}><h3>{c.brand}</h3><p>Submitted by {c.name}</p><p>{c.evidence}</p><div className="actions">
       <Action name="admin-claim" back={back} id={c.id} enabled><button>Verify and grant access</button></Action><Action name="admin-claim" back={back} id={c.id} enabled={false}><button className="secondary">Decline claim</button></Action>
@@ -35,16 +43,17 @@ export default async function Admin({searchParams}:{searchParams:Promise<Params>
     </div></details>):<Empty>No pending submissions.</Empty>}</section>
     <section className="stack"><h2>Campaign moderation</h2>{campaigns.rows.length?campaigns.rows.map(c=><details className="panel" key={c.id}><summary>{c.title} · {c.status}</summary><p><Link href={'/campaigns/'+c.id}>Review campaign page</Link></p>
       <Action name="campaign-status" back={back} id={c.id}><label>New status<select name="status" defaultValue={c.status}>{['Gathering interest','Under moderation','Ready for brand outreach','Brand contacted','Under brand review','Brand approved','Brand declined','Completed','Archived'].map(status=><option key={status}>{status}</option>)}</select></label><label>Public explanation and supporting evidence<textarea name="body" required maxLength={3000}/></label><button>Update campaign status</button></Action>
+      {c.status==='Under moderation'&&<Action name="admin-campaign-reject" back={back} id={c.id}><label>Reason for rejecting<textarea required name="body" minLength={8} maxLength={1200}/></label><ConfirmButton message="Reject this campaign and notify its author?">Reject campaign</ConfirmButton></Action>}
     </details>):<Empty>No campaigns to review.</Empty>}</section>
     <div className="split"><section className="stack"><h2>Correction requests</h2>{corrections.rows.length?corrections.rows.map(r=><article className="panel" key={r.id}><Link className="text-link" href={'/products/'+r.slug}>{r.name}</Link><p>{r.suggestion}</p><Action name="admin-correction" back={back} id={r.id}><button>Mark resolved</button></Action></article>):<Empty>No pending corrections.</Empty>}</section>
     <section className="stack"><h2>Reports</h2>{reports.rows.length?reports.rows.map(r=><article className="panel stack" key={r.id}><Link className="text-link" href={'/campaigns/'+r.campaign_id}>Campaign {r.campaign_id}</Link><p>{r.reason}</p>{r.comment&&<blockquote>{r.comment}</blockquote>}<div className="actions">
       <Action name="admin-report" back={back} id={r.id} enabled={false}><button className="secondary">Resolve report</button></Action>
-      {r.comment_id&&<Action name="admin-report" back={back} id={r.id} enabled><button>Hide comment</button></Action>}
+      {r.comment_id&&<Action name="admin-report" back={back} id={r.id} enabled><ConfirmButton message="Hide this comment from public view?">Hide comment</ConfirmButton></Action>}
     </div></article>):<Empty>No pending reports.</Empty>}</section></div>
     <section className="stack"><h2>Catalogue management</h2><details className="panel"><summary>Enter a product manually</summary><Action name="admin-entry" back={back}><CatalogueFields/><button>Add catalogue entry</button></Action></details>
       {products.rows.map(p=><details className="panel" key={p.id}><summary>{p.name} · {p.deleted_at?'Hidden':p.demo?'Demo':p.verification}</summary><div className="stack">
         {!p.deleted_at&&<Link className="text-link" href={'/products/'+p.slug}>View product</Link>}<Link className="text-link" href={'/admin/products/'+p.id}>Edit or merge product</Link>
-        <Action name="admin-product-visibility" back={back} id={p.id} enabled={Boolean(p.deleted_at)}><button className="secondary">{p.deleted_at?'Restore product':'Hide product'}</button></Action>
+        <Action name="admin-product-visibility" back={back} id={p.id} enabled={Boolean(p.deleted_at)}>{p.deleted_at?<button className="secondary">Restore product</button>:<ConfirmButton message="Hide this product from the archive?">Hide product</ConfirmButton>}</Action>
         {!p.demo&&<Action name="admin-verify-product" back={back} id={p.id} enabled={p.verification!=='verified'}><label>Evidence reviewed<textarea name="body" minLength={8} maxLength={1000} required/></label><button>{p.verification==='verified'?'Remove verification':'Verify source'}</button></Action>}
       </div></details>)}</section>
     <ImportPanel user={user.id} back={back}/>

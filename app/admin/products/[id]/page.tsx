@@ -1,3 +1,4 @@
+import { ConfirmButton } from '../../../confirm-button';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { db } from '@/lib/db';
@@ -29,6 +30,6 @@ export default async function EditProduct({params,searchParams}:{params:Promise<
       <label>Licence URL (optional)<input name="licence" type="url" maxLength={1000}/></label><button>Upload product photo</button>
     </form>:<p>Image uploads become available when private object storage is configured.</p>}</section>
     <section className="panel stack"><h2>Merge duplicate</h2><p>Move campaigns, evidence and saved references to the canonical record and hide this duplicate.</p>
-    <Action name="admin-merge-product" back="/admin" id={id}><label>Canonical product ID<input name="product" inputMode="numeric" pattern="[1-9][0-9]*" required/></label><button>Merge into canonical product</button></Action></section>
+    <Action name="admin-merge-product" back="/admin" id={id}><label>Canonical product ID<input name="product" inputMode="numeric" pattern="[1-9][0-9]*" required/></label><ConfirmButton secondary={false} message="Merge this record into the selected product and hide the duplicate?">Merge into canonical product</ConfirmButton></Action></section>
   </div>;
 }

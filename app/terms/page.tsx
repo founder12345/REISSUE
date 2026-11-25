@@ -1,10 +1,15 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-export const metadata:Metadata={title:'Terms of use draft',robots:{index:false,follow:true}};
+import { legalStatus,termsVersion } from '@/lib/policies';
+import { LegalDisclosure } from '../legal-status';
+
+export const metadata:Metadata={title:'Terms of Service',robots:{index:false,follow:true}};
 export default function Terms(){
-  return <div className="wrap page legal-page"><p className="kicker">DRAFT · REQUIRES LEGAL REVIEW BEFORE LAUNCH</p><h1>Terms of use</h1>
-  <h2>The archive</h2><p>REISSUE is operated by Conditra Studio. Catalogue information may change as sources are reviewed. Demonstration records are identified in the archive.</p>
-  <h2>Comeback campaigns</h2><p>Registering interest is an expression of preference. It does not place an order, reserve stock or commit you or a brand to a purchase or revival. You can withdraw your interest through the campaign page.</p>
-  <h2>Community contributions</h2><p>Submit information and media you have the right to share. Use your own account and respect other members. REISSUE may review, correct, hide or remove content that is inaccurate, abusive or infringes rights.</p>
-  <h2>Questions and corrections</h2><p>Send <Link href="/feedback">feedback</Link> or use the correction form on an individual record.</p></div>;
+  if(legalStatus().withheld)return <div className="wrap page legal-page"><h1>Terms of Service</h1><p>Public onboarding is closed while the operator finalises the terms.</p></div>;
+  return <div className="wrap page legal-page"><h1>Terms of Service</h1><LegalDisclosure/><p className="small">Version {termsVersion()}</p>
+    <h2>The archive</h2><p>REISSUE helps people discover archival products and express demand for a revival. Catalogue information can change as sources are reviewed. Brands listed in the archive are not automatically affiliated with REISSUE.</p>
+    <h2>Comeback campaigns</h2><p>Supporting a campaign is non-binding. It does not place an order, reserve stock or guarantee a revival. REISSUE does not process purchases or payments.</p>
+    <h2>Contributing</h2><p>Submit accurate information and only content you have permission to share. Trademarks and product references belong to their respective rights holders. We may restrict or remove content that breaches the rules.</p>
+    <h2>Reports and appeals</h2><p>See the <Link href="/policies/community">community guidelines</Link>, <Link href="/policies/acceptable-use">acceptable use policy</Link>, <Link href="/policies/intellectual-property">intellectual property policy</Link> and <Link href="/policies/content-reporting">content reporting policy</Link>.</p>
+  </div>;
 }

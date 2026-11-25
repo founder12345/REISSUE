@@ -1,3 +1,7 @@
+import { validFlow } from '@/lib/discovery-events';
+import { consent } from '@/lib/consent';
+import { lifecycleStatus,saveEvidence,verificationLevel } from '@/lib/verification';
+import { CatalogueError,continueCatalogue,queueCatalogue } from '@/lib/catalogue-jobs';
 import { after, NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
@@ -8,7 +12,7 @@ import { consentCookie,consentLifetime,consentVersion,optionalAnalytics,registra
 import { configuredOrigin,siteOrigin } from '@/lib/site';
 import { asActor, db, transaction } from '@/lib/db';
 import { endSession, limit, matchesPassword, passwordHash, startSession, viewer } from '@/lib/auth';
-import { editProduct, insertProduct, mergeProduct, previewImport, record } from '@/lib/ingestion';
+import { editProduct, insertProduct, mergeProduct, record } from '@/lib/ingestion';
 import type { PoolClient } from 'pg';
 
 const statuses=['Gathering interest','Under moderation','Ready for brand outreach','Brand contacted','Under brand review','Brand approved','Brand declined','Completed','Archived'] as const;
@@ -244,6 +248,50 @@ export async function POST(request:NextRequest) {
       else await db.query('DELETE FROM saved_searches WHERE user_id=$1 AND query=$2',[user.id,query]);
       return go(safe,'notice',toggle?'Search saved.':'Saved search removed.');
     }
+    if(action==='register-catalogue-source'){
+      check(isAdmin,'Administrator access required.');
+      const source=z.url({protocol:/^https?$/}).max(1000).parse(field('source'));
+      const parsed=new URL(source);
+      check(!parsed.username&&!parsed.password,'Source URLs must not contain credentials.');
+      await transaction(async client=>{
+        const {rows:[entry]}=await client.query<{id:string}>(`INSERT INTO catalogue_sources(name,kind,source_url,permission,restrictions,retrieved_on,registered_by)
+          VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id`,[text('name',140),
+          z.enum(['brand','licensed_dataset','authorized_api','historical_catalogue','manual_research']).parse(field('kind')),
+          source,text('permission',1800,8),text('restrictions',1800,0),z.iso.date().parse(field('retrieved')),user.id]);
+        await audit(client,user.id,action,entry.id);
+      });
+      return go(safe,'notice','Catalogue source registered.');
+    }
+    if(action==='review-product-evidence'||action==='brand-confirm-product'){
+      const product=id();
+      const brandReview=action==='brand-confirm-product';
+      check(brandReview||isAdmin,'Administrator access required.');
+      const level=brandReview?'brand_confirmed':verificationLevel.exclude(['brand_confirmed']).parse(field('verification'));
+      const status=brandReview?'unknown':lifecycleStatus.parse(field('lifecycle'));
+      await transaction(async client=>{
+        check(await saveEvidence(client,{id:product,actor:user.id,admin:!brandReview&&isAdmin,level,status,
+          date:field('discontinued')?z.iso.date().parse(field('discontinued')):null,
+          source:z.url({protocol:/^https?$/}).max(1000).parse(field('source')),rationale:text('body',1800,8)}),
+          'Use a recorded source and a matching verification role for this visible non-demo product.');
+        await audit(client,user.id,action,product,{level});
+      });
+      return go(safe,'notice','Evidence decision saved.');
+    }
+    if(action==='brand-pilot-save'){
+      const brand=id('brand'),campaign=id();
+      await transaction(async client=>{
+        check((await client.query(`SELECT 1 FROM brand_members m JOIN products p ON p.brand_id=m.brand_id
+          JOIN campaigns c ON c.product_id=p.id WHERE m.brand_id=$1 AND m.user_id=$2 AND c.id=$3
+          AND NOT p.demo AND p.deleted_at IS NULL AND c.rejected_at IS NULL AND c.status<>'Under moderation' FOR SHARE OF m,p,c`,[brand,user.id,campaign])).rowCount,
+          'This campaign is not available for a brand pilot.');
+        await client.query(`INSERT INTO brand_pilots(brand_id,campaign_id,stage,contact_preference,notes) VALUES($1,$2,$3,$4,$5)
+          ON CONFLICT(brand_id,campaign_id) DO UPDATE SET stage=excluded.stage,contact_preference=excluded.contact_preference,notes=excluded.notes,updated_at=now()`,
+          [brand,campaign,z.enum(['exploring','feasibility','closed']).parse(field('stage')),
+            z.enum(['portal','email','none']).parse(field('contactPreference')),text('body',2000,0)]);
+        await audit(client,user.id,action,campaign,{brand});
+      });
+      return go(safe,'notice','Pilot details saved.');
+    }
     if(action==='avatar-remove'){
       await db.query('UPDATE profiles SET avatar_bytes=NULL WHERE id=$1',[user.id]);
       return go('/account#profile','notice','Profile picture removed.');
@@ -330,48 +378,34 @@ export async function POST(request:NextRequest) {
       return go('/campaigns/'+submitted.id);
     } else if(action==='claim-brand') {
       await db.query('INSERT INTO brand_ownership_requests(brand_id,user_id,evidence) VALUES($1,$2,$3)',[id(),user.id,text('body',4000,20)]);
-    } else if(action==='import-preview' || action==='import-commit') {
-      const brand=field('brand') ? id('brand') : null;
-      await transaction(async client=>{
-        const membership=brand ? (await client.query<{slug:string}>('SELECT b.slug FROM brand_members m JOIN brands b ON b.id=m.brand_id WHERE m.brand_id=$1 AND m.user_id=$2 FOR SHARE OF m',[brand,user.id])).rows[0] : null;
-        check(isAdmin || membership,'Catalogue access denied.');
-        if(action==='import-preview') {
-          let preview;
-          try {preview=previewImport(text('data',55000),field('format'));} catch {throw new ActionError('Provide valid CSV or a JSON array of 1 to 100 catalogue records.');}
-          const {rows}=await client.query<{slug:string;valid:boolean;duplicate:boolean}>(`
-            SELECT r.slug,b.id IS NOT NULL AND c.id IS NOT NULL AS valid,
-              EXISTS(SELECT 1 FROM products p WHERE p.slug=r.slug OR (p.brand_id=b.id
-                AND archive_fold(p.name)=archive_fold(r.name)
-                AND archive_fold(coalesce(p.model,''))=archive_fold(coalesce(r.model,'')))) AS duplicate
-            FROM jsonb_to_recordset($1::jsonb) r(slug text,brand text,category text,name text,model text)
-            LEFT JOIN brands b ON b.slug=r.brand LEFT JOIN categories c ON c.slug=r.category`,[JSON.stringify(preview.data)]);
-          for(const r of preview.data){
-            if(membership && !isAdmin && r.brand!==membership.slug)preview.errors.push('Brand mismatch: '+r.slug);
-          }
-          for(const row of rows){
-            if(!row.valid)preview.errors.push('Unknown category or brand: '+row.slug);
-            if(row.duplicate)preview.errors.push('Already in archive: '+row.slug);
-          }
-          await client.query('INSERT INTO import_jobs(user_id,brand_id,data,errors) VALUES($1,$2,$3,$4)',[user.id,brand,JSON.stringify(preview.data),JSON.stringify(preview.errors)]);
-        } else {
-          const job=id();
-          const {rows}=await client.query<{data:unknown[];errors:string[];status:string}>('SELECT data,errors,status FROM import_jobs WHERE id=$1 AND user_id=$2 AND brand_id IS NOT DISTINCT FROM $3::bigint FOR UPDATE',[job,user.id,brand]);
-          const item=rows[0];
-          check(item?.status==='preview' && item.errors.length===0 && item.data.length,'Import is unavailable or contains errors.');
-          for(const row of item.data) {
-            const data=record.parse(row);
-            check(isAdmin || data.brand===membership?.slug,'Brand mismatch.');
-            await insertProduct(client,data);
-          }
-          await client.query("UPDATE import_jobs SET status='committed' WHERE id=$1",[job]);
-          await audit(client,user.id,action,job,{records:item.data.length});
+    } else if(['import-preview','import-commit','import-rollback'].includes(action)){
+      const brand=field('brand')?id('brand'):null;
+      const result=await transaction(async client=>{
+        const membership=brand?(await client.query<{slug:string}>('SELECT b.slug FROM brand_members m JOIN brands b ON b.id=m.brand_id WHERE m.brand_id=$1 AND m.user_id=$2 FOR SHARE OF m',[brand,user.id])).rows[0]:null;
+        check(isAdmin||membership,'Catalogue access denied.');
+        const options={user:user.id,brandId:brand,brandSlug:isAdmin?undefined:membership?.slug};
+        if(action==='import-preview'){
+          check(field('rights')==='yes','Confirm the catalogue reuse permission.');
+          const sourceId=field('sourceId')?id('sourceId'):null;
+          if(sourceId)check(isAdmin&&(await client.query('SELECT 1 FROM catalogue_sources WHERE id=$1',[sourceId])).rowCount,'Select a registered source.');
+          await queueCatalogue(client,{...options,input:text('data',55000),format:z.enum(['csv','json']).parse(field('format')),
+            mode:z.enum(['create','sources']).parse(field('mode')||'create'),sourceId});
+          return null;
         }
+        const job=id();
+        const progress=await continueCatalogue(client,{...options,id:job,rollback:action==='import-rollback'});
+        await audit(client,user.id,action,job,progress);
+        return progress;
       });
+      if(result?.status==='retry')return go(safe,'error','Import paused. Review the latest error in the job.');
+      if(result?.status==='processing')return go(safe,'notice','Batch staged. Continue the import to publish all records.');
+      return go(safe,'notice','Changes saved.');
     } else if(['interest','follow-campaign','comment','report','publish-update','campaign-status'].includes(action)) {
       const campaign=id();
       let publishedAuthor:string|null=null;
+      const flow=action==='interest'&&toggle&&await consent().then(c=>c.analytics)?validFlow(field('flow')):undefined;
       await transaction(async client=>{
-        const {rows}=await client.query<{brand_id:string;status:string;author_id:string|null}>(`SELECT p.brand_id,c.status,c.author_id FROM campaigns c JOIN products p ON p.id=c.product_id WHERE c.id=$1 AND p.deleted_at IS NULL AND c.rejected_at IS NULL FOR UPDATE OF c`,[campaign]);
+        const {rows}=await client.query<{brand_id:string;status:string;author_id:string|null;colours:string[];demo:boolean}>(`SELECT p.brand_id,c.status,c.author_id,p.colours,p.demo FROM campaigns c JOIN products p ON p.id=c.product_id WHERE c.id=$1 AND p.deleted_at IS NULL AND c.rejected_at IS NULL FOR UPDATE OF c`,[campaign]);
         const entry=rows[0];
         check(entry,'Campaign unavailable.');
         if(action==='publish-update' || action==='campaign-status') {
@@ -405,9 +439,15 @@ export async function POST(request:NextRequest) {
           check(!country || /^[a-z]{2}$/i.test(country),'Use a two-letter country code.');
           const price=optionalNumber('price',1000000), maximum=optionalNumber('priceMax',1000000);
           check(maximum===null||(price!==null&&price<=maximum),'Enter a maximum at least as high as the minimum.');
-          await client.query(`INSERT INTO campaign_supporters(campaign_id,user_id,price,quantity,variant,country,likelihood,price_max) VALUES($1,$2,$3,$4,$5,$6,$7,$8)
-           ON CONFLICT(campaign_id,user_id) DO UPDATE SET price=excluded.price,quantity=excluded.quantity,variant=excluded.variant,country=excluded.country,likelihood=excluded.likelihood,price_max=excluded.price_max`,
-          [campaign,user.id,price,optionalNumber('quantity',100,true,1),text('variant',100,0)||null,country.toUpperCase()||null,optionalNumber('likelihood',5,true,1),maximum]);
+          const colour=field('colour');
+          check(!colour||entry.colours.includes(colour),'Choose a colour from the product record.');
+          const returning=flow&&!entry.demo?(await client.query('SELECT 1 FROM campaign_supporters WHERE campaign_id=$1 AND user_id=$2',[campaign,user.id])).rowCount:null;
+          await client.query(`INSERT INTO campaign_supporters(campaign_id,user_id,price,quantity,variant,country,likelihood,price_max,preferred_colour) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)
+           ON CONFLICT(campaign_id,user_id) DO UPDATE SET price=excluded.price,quantity=excluded.quantity,variant=excluded.variant,country=excluded.country,likelihood=excluded.likelihood,price_max=excluded.price_max,preferred_colour=excluded.preferred_colour`,
+          [campaign,user.id,price,optionalNumber('quantity',100,true,1),text('variant',100,0)||null,country.toUpperCase()||null,optionalNumber('likelihood',5,true,1),maximum,colour||null]);
+          if(flow&&!entry.demo&&!returning)await client.query(`UPDATE search_events SET journey_supported_at=now()
+            WHERE journey_id=$1 AND journey_campaign_id=$2 AND journey_viewed_at IS NOT NULL
+              AND journey_supported_at IS NULL AND created_at>now()-interval '1 hour'`,[flow,campaign]);
         } else if(action==='follow-campaign') {
           await client.query(toggle?'INSERT INTO campaign_follows(campaign_id,user_id) VALUES($1,$2) ON CONFLICT DO NOTHING':'DELETE FROM campaign_follows WHERE campaign_id=$1 AND user_id=$2',[campaign,user.id]);
         } else if(action==='comment') {
@@ -456,6 +496,8 @@ export async function POST(request:NextRequest) {
         }
         const target=id();
         if(action==='admin-edit-product') {
+          check(!(await client.query(`SELECT 1 FROM import_created_products i JOIN import_jobs j ON j.id=i.import_id
+            WHERE i.product_id=$1 AND j.status='processing'`,[target])).rowCount,'Finish or roll back the import before editing this record.');
           await editProduct(client,target,record.parse(Object.fromEntries(form)));
           await audit(client,user.id,action,target);
           return;
@@ -491,12 +533,9 @@ export async function POST(request:NextRequest) {
           const {rows}=await client.query<{comment_id:string|null}>("UPDATE moderation_reports SET status='resolved' WHERE id=$1 AND status='pending' RETURNING comment_id",[target]);
           if(toggle && rows[0]?.comment_id) await client.query('UPDATE campaign_comments SET deleted_at=now() WHERE id=$1',[rows[0].comment_id]);
         } else if(action==='admin-product-visibility') {
-          await client.query('UPDATE products SET deleted_at=CASE WHEN $2 THEN NULL ELSE now() END WHERE id=$1',[target,toggle]);
-        } else if(action==='admin-verify-product') {
-          const evidence=text('body',1000,8);
-          check((await client.query(`UPDATE products SET verification=$2 WHERE id=$1 AND NOT demo AND EXISTS(SELECT 1 FROM product_sources WHERE product_id=$1)`,[target,toggle?'verified':'unverified'])).rowCount,'A non-demo catalogue entry with a source is required.');
-          await audit(client,user.id,action,target,{evidence,verified:toggle});
-          return;
+          check((await client.query(`UPDATE products p SET deleted_at=CASE WHEN $2 THEN NULL ELSE now() END
+            WHERE id=$1 AND merged_into_id IS NULL AND NOT EXISTS(SELECT 1 FROM import_created_products i JOIN import_jobs j ON j.id=i.import_id
+              WHERE i.product_id=p.id AND j.status IN ('preview','processing'))`,[target,toggle])).rowCount,'This staged or merged record cannot be restored here.');
         } else throw new ActionError('Unknown action.');
         await audit(client,user.id,action,target,{approved:toggle});
       });
@@ -504,7 +543,7 @@ export async function POST(request:NextRequest) {
     } else throw new ActionError('Unknown action.');
     return go(safe,'notice','Changes saved.');
   } catch(error) {
-    if(error instanceof ActionError) return go(safe,'error',error.message);
+    if(error instanceof ActionError||error instanceof CatalogueError) return go(safe,'error',error.message);
     if(error instanceof z.ZodError) return go(safe,'error','Check the submitted fields and try again.');
     if((error as {code?:string}).code==='23505') return go(safe,'error','A matching record already exists.');
     console.error('Mutation failed',action,(error as {code?:string}).code ?? 'unexpected');

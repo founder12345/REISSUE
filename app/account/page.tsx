@@ -1,3 +1,4 @@
+import { recordAccountActivity } from '@/lib/discovery-events';
 import { ConfirmButton } from '../confirm-button';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -23,6 +24,7 @@ export default async function Account({searchParams}:{searchParams:Promise<Param
     <label className="check"><input name="terms" type="checkbox" value="yes" required/> <span>I accept the <Link href="/terms" target="_blank">Terms of Service</Link>.</span></label>
     <button>Create account</button></Action>:<p>New email accounts are currently unavailable.</p>}</section>
   </div></div>;
+  await recordAccountActivity(user.id);
   const [saved,alerts,collections,follows,brands,searches,campaigns,services,savedCampaigns]=await Promise.all([
     db.query<Product>(`${catalogue} JOIN saved_products s ON s.product_id=p.id WHERE s.user_id=$1 AND p.deleted_at IS NULL ORDER BY p.id DESC LIMIT 100`,[user.id]),
     db.query<{id:string;campaign_id:string;title:string;body:string;read_at:string|null}>('SELECT u.id,u.campaign_id,c.title,u.body,n.read_at FROM notifications n JOIN campaign_updates u ON u.id=n.update_id JOIN campaigns c ON c.id=u.campaign_id JOIN products p ON p.id=c.product_id WHERE n.user_id=$1 AND p.deleted_at IS NULL AND c.status<>\'Under moderation\' ORDER BY u.id DESC LIMIT 40',[user.id]),

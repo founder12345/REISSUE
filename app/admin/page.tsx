@@ -54,8 +54,10 @@ export default async function Admin({searchParams}:{searchParams:Promise<Params>
       {products.rows.map(p=><details className="panel" key={p.id}><summary>{p.name} · {p.deleted_at?'Hidden':p.demo?'Demo':p.verification}</summary><div className="stack">
         {!p.deleted_at&&<Link className="text-link" href={'/products/'+p.slug}>View product</Link>}<Link className="text-link" href={'/admin/products/'+p.id}>Edit or merge product</Link>
         <Action name="admin-product-visibility" back={back} id={p.id} enabled={Boolean(p.deleted_at)}>{p.deleted_at?<button className="secondary">Restore product</button>:<ConfirmButton message="Hide this product from the archive?">Hide product</ConfirmButton>}</Action>
-        {!p.demo&&<Action name="admin-verify-product" back={back} id={p.id} enabled={p.verification!=='verified'}><label>Evidence reviewed<textarea name="body" minLength={8} maxLength={1000} required/></label><button>{p.verification==='verified'?'Remove verification':'Verify source'}</button></Action>}
+
       </div></details>)}</section>
+    <p><Link className="text-link" href="/admin/sources">Catalogue source registry</Link></p>
+    <p><Link className="text-link" href="/admin/intelligence">Business metrics</Link></p>
     <ImportPanel user={user.id} back={back}/>
     <div className="split">{(['category','brand'] as const).map(kind=><section className="panel stack" key={kind}><h2>Manage {kind==='brand'?'brands':'categories'}</h2><Action name={'admin-'+kind} back={back}><label>Name<input name="title" required maxLength={100}/></label><label>Slug<input name="slug" required pattern="[a-z0-9]+(-[a-z0-9]+)*"/></label><button>Save {kind}</button></Action></section>)}</div>
     <div className="split"><section className="panel stack"><h2>Search synonyms</h2><Action name="admin-synonym" back={back} enabled><label>Search term<input name="term" pattern="[A-Za-z0-9]+" required/></label><label>Replacement phrase<input name="body" maxLength={100} required/></label><button>Save synonym</button></Action>

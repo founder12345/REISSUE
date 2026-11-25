@@ -6,6 +6,7 @@ const targets=[
   ['account_tokens','expires_at < now()'],['oauth_flows','expires_at < now()'],
   ['oauth_onboarding','expires_at < now()'],['sessions','expires_at < now()'],['rate_limits','expires_at < now()'],
   ['profiles',"verification_required AND email_verified_at IS NULL AND created_at < now()-interval '2 days'"],
+  ['member_activity_days',"observed_on < (now() AT TIME ZONE 'UTC')::date-90"],
   ['search_events',"created_at < now()-interval '30 days'"],
 ];
 try{

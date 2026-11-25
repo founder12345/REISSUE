@@ -102,3 +102,6 @@ button,.button{transition:background-color .18s ease,filter .18s ease}
 .account-links a{text-decoration:underline;text-underline-offset:.22em}
 .avatar{display:grid;place-items:center;width:48px;height:48px;background:var(--sage);color:var(--forest);font-weight:700;border-radius:50%}
 @media(max-width:600px){.cookie-banner{right:12px;bottom:12px;width:calc(100% - 24px)}}
+.metric-list{grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:18px}
+.metric{padding:12px 10px;border-bottom:1px solid var(--line)}
+.metric dd{font-family:var(--serif);font-size:1.6rem}

@@ -34,3 +34,13 @@ Tested with the Next.js production build, PostgreSQL 17 and Chromium in an isola
 ## Next phase
 
 Set up a protected Vercel pilot using a separate PostgreSQL database, a verified sender and a Google test client. Verify each external boundary with the exact deployment role. Confirm the operator disclosures and product moderation process before enabling public registration, then prioritise administrator MFA, broader database row policies, request workflow automation and a durable transactional email queue.
+
+## Phase 4 final regression
+
+- ESLint, TypeScript, all 4 unit tests and the Next.js production build passed.
+- All 15 Chromium tests passed against disposable PostgreSQL with a non-superuser, non-`BYPASSRLS` runtime role. New coverage includes CSV/JSON normalization and existing import behaviour, staged publication and rollback, incremental source append, source-backed lifecycle review, archive metadata, aggregate score thresholds, private reports, campaign PNG cards and a consented search-to-support journey.
+- Previously implemented email verification, recovery, brand permission boundaries, collection and draft ownership, account export/deletion, cookie consent and privacy reviews passed their regression tests. Login with a real Google account was unavailable.
+- A direct database check found 0 verified non-demo products and 6 visible demo products in the migrated internal catalogue. The live internal home and new brand/category archives returned HTTP 200. All 126 curated search cases passed against that catalogue.
+- The npm dependency audit reported zero known vulnerabilities. External monitoring and a production security review remain launch tasks. Vercel project discovery returned no REISSUE project in the connected team, so live storage, authentication and database operations remain unverified.
+
+[Search benchmarks](SEARCH_BENCHMARKS.md) · [Closed beta requirements](BETA_CHECKLIST.md)

@@ -1,11 +1,13 @@
 import { db, transaction } from './db';
-import { decodeCursor, encodeCursor, filterKeys, foldQuery, numericFilters, pageSize, weights } from './ranking';
+import { decodeCursor, encodeCursor, filterKeys, foldQuery, numericFilters, pageSize, parseArchiveQuery, weights } from './ranking';
+
+import type { LifecycleStatus,VerificationLevel } from './verification';
 
 export type Product = {
   id: string; slug: string; name: string; brand: string; brand_slug: string; brand_id: string;
   category: string; category_slug: string; subcategory: string|null; description: string; history: string|null;
   release_year: number|null; discontinued_year: number|null; retail_price: string|null; currency: string|null;
-  availability: string; verification: string; demo: boolean; colours: string[]; materials: string[]; country: string|null;
+  availability: string; verification: string; lifecycle_status:LifecycleStatus; verification_level:VerificationLevel; discontinuation_date:Date|null; verified_at:Date|null; variants:string[]; demo: boolean; colours: string[]; materials: string[]; country: string|null;
   reference_number: string|null; model: string|null; sku: string|null;
   demand: number; momentum: number; campaign_id: string|null; campaign_status: string|null;
   image: string|null; image_alt: string|null; score: number;
@@ -31,13 +33,13 @@ export const catalogue = `SELECT ${projection} ${catalogueFrom}`;
 const columns = {
   category:'c.slug', subcategory:'p.subcategory', brand:'b.slug', year:'p.release_year',
   ended:'p.discontinued_year', decade:'(p.release_year / 10 * 10)', colour:'p.colours', material:'p.materials',
-  availability:'p.availability', country:'p.country', status:'d.status', verification:'p.verification', currency:'p.currency',
+  availability:'p.lifecycle_status', country:'p.country', status:'d.status', verification:'p.verification', currency:'p.currency',
 };
 const stopWords = new Set(['the','a','an','of','for','by','old','vintage','find','looking','search','show','me','please','original']);
 const keywords = (q: string) => [...new Set((q.match(/[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)*/gu) ?? []).filter(word => !stopWords.has(word)))].slice(0,12);
 
 export async function search(params: URLSearchParams) {
-  const raw = foldQuery(params.get('q') ?? '');
+  const {text:raw,filters}=parseArchiveQuery(params);
   const quoted = raw.startsWith('"') && raw.endsWith('"') && raw.length > 2;
   const q = quoted ? raw.slice(1,-1) : raw;
   const terms = keywords(q);
@@ -48,11 +50,11 @@ export async function search(params: URLSearchParams) {
   const termRef = param(terms);
   const where = ['p.deleted_at IS NULL', `${qRef}::text IS NOT NULL`, `${termRef}::text[] IS NOT NULL`];
   for (const key of filterKeys) {
-    const selected = params.getAll(key).slice(0,20).map(foldQuery).filter(Boolean);
+    const selected = filters.getAll(key).slice(0,20).map(foldQuery).filter(Boolean);
     if (!selected.length) continue;
     const value = param(selected);
     const column = columns[key];
-    where.push(key === 'colour' || key === 'material'
+    where.push(key==='brand'||key==='category'? `${column}=ANY(${value}::text[])` : key === 'colour' || key === 'material'
       ? `EXISTS(SELECT 1 FROM unnest(${column}) v WHERE archive_fold(v)=ANY(${value}::text[]))`
       : `archive_fold(${column}::text)=ANY(${value}::text[])`);
   }
@@ -133,8 +135,8 @@ export async function search(params: URLSearchParams) {
   return {products,total:rows[0]?.total ?? 0,next:rows.length>pageSize && last ? encodeCursor(last.score,last.id) : null};
 }
 
-export async function discovery(order: 'recent'|'requested'|'momentum'|'verified', limit = 4) {
-  const sorting = {recent:'p.created_at DESC',requested:'d.demand DESC',momentum:'d.momentum DESC',verified:'p.demo ASC,p.created_at DESC'};
-  const conditions = {recent:'true',requested:'d.demand>0 AND NOT p.demo',momentum:'d.momentum>0 AND NOT p.demo',verified:"p.verification='verified' OR p.demo"};
+export async function discovery(order: 'recent'|'requested'|'momentum'|'verified'|'editorial', limit = 4) {
+  const sorting = {recent:'p.created_at DESC',requested:'d.demand DESC',momentum:'d.momentum DESC',verified:'p.verified_at DESC NULLS LAST',editorial:'p.created_at DESC'};
+  const conditions = {recent:'true',requested:'d.demand>0 AND NOT p.demo',momentum:'d.momentum>0 AND NOT p.demo',verified:"p.verification='verified' AND NOT p.demo",editorial:"p.demo AND image.path IS NOT NULL"};
   return (await db.query<Product>(`${catalogue} WHERE p.deleted_at IS NULL AND (${conditions[order]}) ORDER BY ${sorting[order]},p.id DESC LIMIT $1`,[limit])).rows;
 }

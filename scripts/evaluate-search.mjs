@@ -33,4 +33,4 @@ console.log(JSON.stringify({
   cases:cases.length,requests:results.length,concurrency,top1:percent(first),top5:percent(top5),
   p50Ms:at(.5),p95Ms:at(.95),p99Ms:at(.99),maxMs:at(1),errors,
 },null,2));
-if(first!==results.length)process.exitCode=1;
+if(first!==results.length&&!process.argv.includes('--latency-only'))process.exitCode=1;

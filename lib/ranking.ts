@@ -19,3 +19,22 @@ export function decodeCursor(cursor: string | null): [number,string] | null {
   } catch { return null; }
   return null;
 }
+
+export function parseArchiveQuery(params:URLSearchParams){
+  let text=foldQuery(params.get('q')??'');
+  const filters=new URLSearchParams(params);
+  if(!text.startsWith('"')){
+    text=text.replace(/\b(?:from|in|released in) (?:the )?((?:18|19|20)\d{2})(s)?\b/g,(_,year:string,decade:string|undefined)=>{
+      const facet=decade?'decade':'year';
+      if(!params.has(facet))filters.append(facet,year);
+      return ' ';
+    });
+    text=text.replace(/^discontinued\s+/,'');
+    if(/^discontinued(?:\s|$)/.test(foldQuery(params.get('q')??''))&&!params.has('availability')){
+      filters.set('availability','discontinued');
+      if(text==='discontinued')text='';
+    }
+    text=text.replace(/\s+/g,' ').trim();
+  }
+  return {text,filters};
+}

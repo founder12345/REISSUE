@@ -10,6 +10,7 @@ const sections = {
   savedCampaigns:'SELECT campaign_id FROM saved_campaigns WHERE user_id=$1',
   savedProducts:'SELECT product_id FROM saved_products WHERE user_id=$1',
   savedSearches:'SELECT query,saved_at FROM saved_searches WHERE user_id=$1',
+  activityDays:'SELECT observed_on FROM member_activity_days WHERE user_id=$1 ORDER BY observed_on',
   searchHistory:'SELECT query,used_at FROM search_history WHERE user_id=$1',
   collections:'SELECT c.id,c.title,c.description,c.published,c.created_at,ARRAY(SELECT product_id FROM collection_items WHERE collection_id=c.id) products FROM collections c WHERE user_id=$1',
   comments:'SELECT id,campaign_id,body,created_at,deleted_at FROM campaign_comments WHERE user_id=$1',

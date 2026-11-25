@@ -73,3 +73,12 @@ Run `npm run test:search` against a running seeded app to check the 118-case sea
 - [Functionality matrix and test results](TEST_REPORT.md)
 
 Email registration requires transactional mail configuration. The browser suite runs an isolated local mail receiver and accepts only example.test recipients. Use a disposable database with all migrations, the labelled demo catalogue and a test-only administrator.
+
+## Phase 4
+
+- [Catalogue architecture and evidence review](DATA_ARCHITECTURE.md)
+- [Data sources and licensing](DATA_SOURCES.md)
+- [Search evaluation and scale results](SEARCH_BENCHMARKS.md)
+- [Discovery, demand reporting and metric definitions](GROWTH_STRATEGY.md)
+- [Operating budgets](COST_ESTIMATES.md)
+- [Closed beta checklist](BETA_CHECKLIST.md)

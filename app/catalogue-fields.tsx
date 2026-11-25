@@ -11,6 +11,7 @@ export async function CatalogueFields({defaults={}}:{defaults?:Record<string,str
       <label>Colours (separated by |)<input name="colours" defaultValue={defaults.colours??undefined}/></label><label>Materials (separated by |)<input name="materials" defaultValue={defaults.materials??undefined}/></label><label>Alternative names (separated by |)<input name="aliases" defaultValue={defaults.aliases??undefined}/></label><label>Country of origin<input name="country" defaultValue={defaults.country??undefined}/></label>
       <label>Availability<select name="availability" defaultValue={defaults.availability??undefined}><option value="unknown">Unknown</option><option value="discontinued">Discontinued</option></select></label><label>Source URL<input name="source" defaultValue={defaults.source??undefined} type="url"/></label>
       <label>Official product URL<input name="official_url" type="url" defaultValue={defaults.official_url??undefined}/></label>
+      <label>Variants (separated by |)<input name="variants" defaultValue={defaults.variants??undefined}/></label>
       <label>Specifications (name=value separated by |)<input name="specifications" defaultValue={defaults.specifications??undefined}/></label>
     </div><label>Description<textarea name="description" defaultValue={defaults.description??undefined} minLength={5} maxLength={5000} required/></label><label>Product history<textarea name="history" defaultValue={defaults.history??undefined} maxLength={5000}/></label>
   </>;

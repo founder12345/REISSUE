@@ -1,4 +1,4 @@
-import { consent } from '@/lib/consent';
+import { searchObservation } from '@/lib/discovery-events';
 import Link from 'next/link';
 import { unstable_cache } from 'next/cache';
 import { db } from '@/lib/db';
@@ -17,7 +17,7 @@ const archiveFacets = unstable_cache(async () => (db.query<{kind:string;value:st
     SELECT 'category' kind,slug value,name label FROM categories UNION ALL SELECT 'brand',slug,name FROM brands
     UNION ALL SELECT DISTINCT f.kind,f.value,f.value FROM products p
     CROSS JOIN LATERAL (VALUES ('subcategory',p.subcategory),('year',p.release_year::text),('ended',p.discontinued_year::text),
-      ('decade',(p.release_year/10*10)::text),('country',p.country),('currency',p.currency::text),('availability',p.availability),('verification',p.verification)) f(kind,value)
+      ('decade',(p.release_year/10*10)::text),('country',p.country),('currency',p.currency::text),('availability',p.lifecycle_status),('verification',p.verification)) f(kind,value)
     WHERE p.deleted_at IS NULL AND f.value IS NOT NULL UNION ALL
     SELECT DISTINCT 'colour',unnest(colours),unnest(colours) FROM products WHERE deleted_at IS NULL UNION ALL
     SELECT DISTINCT 'material',unnest(materials),unnest(materials) FROM products WHERE deleted_at IS NULL UNION ALL
@@ -32,11 +32,11 @@ export default async function Explore({searchParams}:{searchParams:Promise<Param
     viewer(),
   ]);
   const folded=foldQuery(q);
+  let flow:string|undefined;
   if(folded&&!params.cursor){
-    const safe=!/@|https?:|\d[\d\s-]{7,}\d/i.test(folded);
-    await Promise.all([
+    [,flow]=await Promise.all([
       user?.search_history ? db.query(`INSERT INTO search_history(user_id,query) VALUES($1,$2) ON CONFLICT(user_id,query) DO UPDATE SET used_at=now()`,[user.id,folded]):null,
-      (await consent()).analytics&&safe ? db.query("INSERT INTO search_events(kind,query,result_count) VALUES('search',$1,$2)",[folded,result.total]):null,
+      searchObservation(folded,result.total,user?.id??null),
     ]);
   }
   const next=new URLSearchParams(url);
@@ -58,7 +58,7 @@ export default async function Explore({searchParams}:{searchParams:Promise<Param
         <button>Apply search and filters</button><Link href={q?'/explore?'+new URLSearchParams({q}):'/explore'}>Clear filters</Link>
       </form>
       <section><h2 className="results-count">{result.total} {result.total===1?'product':'products'}{q?' for “'+q+'”':''}</h2>
-        {result.products.length?<ProductGrid products={result.products} q={q}/>:<Empty>No archive records match. Try fewer filters or <Link href={'/submit?'+new URLSearchParams({name:q})}>request an addition to the archive</Link>.</Empty>}
+        {result.products.length?<ProductGrid products={result.products} q={q} flow={flow}/>:<Empty>No archive records match. Try fewer filters or <Link href={'/submit?'+new URLSearchParams({name:q})}>request an addition to the archive</Link>.</Empty>}
         {result.next&&<Link className="button secondary" href={'/explore?'+next}>Next page</Link>}
       </section>
     </div>

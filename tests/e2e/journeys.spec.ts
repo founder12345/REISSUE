@@ -138,7 +138,7 @@ test('collection isolation, import preview/commit, submission, campaign creation
   expect((await two.request.get(path)).status()).toBe(200);
   const mod=await moderator(browser);
   const slug='archive-'+nonce;
-  expect(await action(mod.request,{action:'import-preview',returnTo:'/admin',format:'csv',data:'slug,name,brand,category,description\n'+slug+',Import fixture '+nonce+',sony,audio,An archival fixture'})).toContain('Changes saved');
+  expect(await action(mod.request,{action:'import-preview',returnTo:'/admin',format:'csv',rights:'yes',data:'slug,name,brand,category,description\n'+slug+',Import fixture '+nonce+',sony,audio,An archival fixture'})).toContain('Changes saved');
   const adminPage=await mod.newPage();
   await adminPage.goto('/admin');
   const preview=adminPage.locator('details').filter({hasText:'Import fixture '+nonce});

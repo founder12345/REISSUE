@@ -24,3 +24,15 @@ test('known discontinuation requires documentation and a valid chronology',()=>{
   assert.equal(record.safeParse({...valid,release_year:1990,discontinued_year:1980}).success,false);
   assert.equal(record.safeParse({...valid,retail_price:100}).success,false);
 });
+
+
+test('natural date and lifecycle intent retain explicit facets and quoted phrases',async()=>{
+  const {parseArchiveQuery}=await import('../lib/ranking.ts');
+  const query=parseArchiveQuery(new URLSearchParams({q:'Discontinued jacket from 2015'}));
+  assert.equal(query.text,'jacket');
+  assert.equal(query.filters.get('year'),'2015');
+  assert.equal(query.filters.get('availability'),'discontinued');
+  assert.equal(parseArchiveQuery(new URLSearchParams({q:'Walkman from the 1990s'})).filters.get('decade'),'1990');
+  assert.equal(parseArchiveQuery(new URLSearchParams({q:'"jacket from 2015"'})).filters.get('year'),null);
+  assert.equal(parseArchiveQuery(new URLSearchParams({q:'jacket from 2015',year:'2016'})).filters.get('year'),'2016');
+});

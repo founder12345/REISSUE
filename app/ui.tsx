@@ -36,8 +36,8 @@ function Highlight({value,q}:{value:string;q?:string}){
   const index=value.toLowerCase().indexOf(term.toLowerCase());
   return index<0?value:<>{value.slice(0,index)}<mark>{value.slice(index,index+term.length)}</mark>{value.slice(index+term.length)}</>;
 }
-export function ProductGrid({products,q}:{products:Product[];q?:string}){
-  return <div className="product-grid">{products.map(p=><Link className="product-card" prefetch={false} key={p.id} href={'/products/'+p.slug+(q?'?from=search':'')}>
+export function ProductGrid({products,q,flow}:{products:Product[];q?:string;flow?:string}){
+  return <div className="product-grid">{products.map(p=><Link className="product-card" prefetch={false} key={p.id} href={'/products/'+p.slug+(q?'?'+new URLSearchParams(flow?{from:'search',flow}:{from:'search'}):'')}>
     <ProductVisual product={p}/><div className="card-meta"><span>{p.brand}</span><span>{p.release_year??'Year unknown'}</span></div>
     <h3><Highlight value={p.name} q={q}/></h3><p>{p.category}{p.demand>0?' · '+p.demand+' interested':''}</p>
   </Link>)}</div>;

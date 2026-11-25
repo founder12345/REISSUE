@@ -12,7 +12,7 @@ export default async function Brands({searchParams}:{searchParams:Promise<Params
   return <div className="wrap page"><p className="kicker">FOR ORIGINAL MANUFACTURERS</p><h1>See what your customers want back.</h1><p className="intro">Verified brand representatives can review aggregate demand, contribute historical product records and respond to comeback campaigns.</p><Notice params={params}/><p><Link className="button" href="/founding-partners">Apply to the founding brand programme</Link></p>
     {!user&&<p><Link href="/account">Create an account or sign in</Link> to request access.</p>}
     <section><header className="section-head"><h2>Brand directory</h2></header>{rows.length?<div className="list-grid">{rows.map(b=><article className="panel stack" key={b.id}>
-      <h3>{b.name}</h3><Link className="text-link" href={'/explore?brand='+b.slug}>Explore products</Link>
+      <h3>{b.name}</h3><Link className="text-link" href={'/archive/brands/'+b.slug}>Explore products</Link>
       {b.member?<Link className="button" href={'/brands/'+b.id}>Open brand dashboard</Link>:user&&b.claim!=='pending'?<details><summary>Request brand access</summary>
       <Action name="claim-brand" back="/brands" id={b.id}><label>Ownership evidence<textarea name="body" minLength={20} maxLength={4000} required/></label><button>Submit verification</button></Action></details>:b.claim==='pending'?<small>Verification pending</small>:null}
     </article>)}</div>:<Empty>Brand profiles will appear as the catalogue grows.</Empty>}</section>

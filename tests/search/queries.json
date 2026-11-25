@@ -470,5 +470,37 @@
   {
     "query": "▲▼☉",
     "expected": null
+  },
+  {
+    "query": "Navy outdoor jacket from 2015",
+    "expected": null
+  },
+  {
+    "query": "Discontinued Arc'teryx backpack",
+    "expected": null
+  },
+  {
+    "query": "Sony Walkman from the 1990s",
+    "expected": null
+  },
+  {
+    "query": "Vintage Seiko automatic watch",
+    "expected": null
+  },
+  {
+    "query": "Old Patagonia fleece colourway",
+    "expected": null
+  },
+  {
+    "query": "Original iPod Classic",
+    "expected": "ipod-classic"
+  },
+  {
+    "query": "Sony Walkman from 1979",
+    "expected": "walkman-tps-l2"
+  },
+  {
+    "query": "Sony Walkman from the 1970s",
+    "expected": "walkman-tps-l2"
   }
 ]

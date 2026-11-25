@@ -12,7 +12,7 @@ export default async function EditProduct({params,searchParams}:{params:Promise<
   const [{id},query,user]=await Promise.all([params,searchParams,viewer()]);
   if(user?.role!=='admin'||!/^[1-9]\d{0,17}$/.test(id))notFound();
   const {rows}=await db.query<Record<string,string|number|null>>(`SELECT p.id,p.name,p.slug,p.description,p.history,p.availability,p.release_year,p.discontinued_year,p.retail_price,p.currency,p.subcategory,p.model,p.reference_number,p.sku,p.country,
-    array_to_string(p.colours,'|') colours,array_to_string(p.materials,'|') materials,
+    array_to_string(p.colours,'|') colours,array_to_string(p.materials,'|') materials,array_to_string(p.variants,'|') variants,
     (SELECT string_agg(alias,'|' ORDER BY alias) FROM product_aliases WHERE product_id=p.id) aliases,
     (SELECT url FROM product_sources WHERE product_id=p.id AND label<>'Official product link' ORDER BY url LIMIT 1) source,
     (SELECT url FROM product_sources WHERE product_id=p.id AND label='Official product link' ORDER BY url LIMIT 1) official_url,
@@ -21,6 +21,9 @@ export default async function EditProduct({params,searchParams}:{params:Promise<
   const product=rows[0];
   if(!product)notFound();
   const back='/admin/products/'+id;
+  const {rows:evidence}=await db.query<{url:string;label:string}>('SELECT url,label FROM product_sources WHERE product_id=$1 ORDER BY label,url',[id]);
+  const {rows:decisions}=await db.query<{id:string;verification_level:string;lifecycle_status:string;source_url:string;rationale:string}>(`SELECT id,verification_level,lifecycle_status,source_url,rationale
+    FROM product_evidence_decisions WHERE product_id=$1 ORDER BY id DESC LIMIT 30`,[id]);
   return <div className="wrap page"><Link href="/admin" className="text-link">Back to moderation</Link><h1>Edit {product.name}</h1><Notice params={query}/>
     <section className="panel stack"><h2>Catalogue record</h2><p>Product ID {id}. Edits require fresh source verification.</p>
     <Action name="admin-edit-product" back={back} id={id}><CatalogueFields defaults={product}/><button>Save catalogue changes</button></Action></section>
@@ -29,6 +32,15 @@ export default async function EditProduct({params,searchParams}:{params:Promise<
       <label>Alternative text<input name="alt" minLength={3} maxLength={220} required/></label><label>Creator, source and usage rights<textarea name="attribution" minLength={8} maxLength={800} required/></label><label>Source URL (optional)<input name="source" type="url" maxLength={1000}/></label>
       <label>Licence URL (optional)<input name="licence" type="url" maxLength={1000}/></label><button>Upload product photo</button>
     </form>:<p>Image uploads become available when private object storage is configured.</p>}</section>
+    <section className="panel stack"><h2>Verification and lifecycle</h2>
+      {evidence.length?<Action name="review-product-evidence" back={back} id={id}>
+        <label>Decision<select name="verification"><option value="source_supported">Source-supported</option><option value="historical">Verified historical product</option><option value="unverified">Unverified</option></select></label>
+        <label>Lifecycle<select name="lifecycle"><option value="unknown">Unconfirmed</option><option value="discontinued">Confirmed discontinued</option><option value="reissued">Confirmed reissued</option></select></label>
+        <label>Discontinuation date, when sourced<input name="discontinued" type="date"/></label>
+        <label>Recorded source<select name="source">{evidence.map(s=><option key={s.url} value={s.url}>{s.label} · {s.url}</option>)}</select></label>
+        <label>Evidence rationale<textarea name="body" required minLength={8} maxLength={1800}/></label><button>Save evidence decision</button>
+      </Action>:<p>Add a source to the catalogue record before recording a decision.</p>}
+      {decisions.map(d=><article className="panel" key={d.id}><strong>{d.verification_level} · {d.lifecycle_status}</strong><p>{d.rationale}</p><a className="text-link" href={d.source_url}>Evidence source</a></article>)}</section>
     <section className="panel stack"><h2>Merge duplicate</h2><p>Move campaigns, evidence and saved references to the canonical record and hide this duplicate.</p>
     <Action name="admin-merge-product" back="/admin" id={id}><label>Canonical product ID<input name="product" inputMode="numeric" pattern="[1-9][0-9]*" required/></label><ConfirmButton secondary={false} message="Merge this record into the selected product and hide the duplicate?">Merge into canonical product</ConfirmButton></Action></section>
   </div>;
